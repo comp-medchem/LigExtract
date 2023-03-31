@@ -1,4 +1,4 @@
-# LigExtract: Automated Ligand Indentification and Extraction from PDB structures
+# LigExtract: Automated Ligand Indentification and Extraction from PDB Structures
 
 ![](docs/sources/images/ligextract_logo.png)
 
