@@ -1,1 +1,9 @@
-Placeholder for the LigExtract tool currently under development
+# LigExtract: Automated Ligand Indentification and Extraction from PDB structures
+
+![](docs/sources/images/ligextract_logo.png)
+
+
+Software that allows large-scale ligand extraction from UniProt ID queries.
+
+
+![](docs/sources/images/scheme_app_updated.png)
