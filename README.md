@@ -11,9 +11,8 @@ Software that allows large-scale ligand extraction from UniProt ID queries. Belo
 
 ## Running LigExtract
 
-- Add path to LigExtract/ligextract directory to $PATH
+1. Add path to LigExtract/ligextract directory to $PATH
 
-- Build dependencies (one-off downloads):
+2. Build dependencies (one-off downloads):
 
-
-    bash build_dependencies.sh
+        bash build_dependencies.sh
