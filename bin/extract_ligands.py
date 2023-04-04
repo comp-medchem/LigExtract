@@ -54,11 +54,11 @@ print("\n------------------  Extracting all possible ligands from PDBs  --------
 originpath = f'{os.getcwd()}/{pdbpath}'.replace("/./","/")
 targetpath = f'{os.getcwd()}/{outpath}'.replace("/./","/")
 
-if ("pdb_chain_uniprot.csv.gz" in os.listdir(f"{home}/data")) == False: 
+if ("pdb_chain_uniprot.csv.gz" in os.listdir(f"~/LigExtract/data")) == False: 
     print("Expecting pdb_chain_uniprot.csv.gz to be in the 'data' directory but file cannot be found. Abort!")
     sys.exit(123)
 
-whitelisted_ligs = [ln.strip() for ln in open("../data/whitelist_ligands.txt").readlines()]
+whitelisted_ligs = [ln.strip() for ln in open("~/LigExtract/data/whitelist_ligands.txt").readlines()]
 
 uniprot2pdb = pd.read_csv(uniprot2pdb_file, sep="\t") 
 missing_downloads = np.setdiff1d(uniprot2pdb.pdb.str.lower(), [x.split(".")[0] for x in os.listdir(pdbpath) if x.endswith(".pdb")])
@@ -288,7 +288,7 @@ for pdbname in pdbs:
     chains_w_Uniprot = np.unique([x[12] for x in uniprot_refs if x[33:41].strip() in uniprotid_alternates])
     extra_prot_chains = []
     # extend the mapping beyond what is in the file using the mapping from SIFTS
-    with gzip.open(f"{home}/data/pdb_chain_uniprot.csv.gz") as f:
+    with gzip.open(f"~/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
         for ln in f:
             ln=ln.decode("utf-8").strip().split(",")
             if ln[0]==pdbcode.lower():
@@ -481,7 +481,7 @@ for pdbname in pdbs:
             message = ""
             if cpd in modres:
                 continue
-            with open(f"{home}/data/all_pdbligs.txt") as f: 
+            with open(f"~/LigExtract/data/all_pdbligs.txt") as f: 
                 for line in f:
                     if line == "id\tcount\n": continue
                     pdbcnt = int(line.strip().split("\t")[1])
@@ -671,7 +671,7 @@ for pdbname in pdbs:
 
     # extract PRD from sequence matching
 
-    prd_seq_list = [ln.strip().split("\t") for ln in open("../data/prd_cmpds_seq_full_experim.txt").readlines()]
+    prd_seq_list = [ln.strip().split("\t") for ln in open("~/LigExtract/data/prd_cmpds_seq_full_experim.txt").readlines()]
     pdbseqs = [ln.strip() for ln in pdb if ln.startswith("SEQRES ")]
     if len(pdbseqs) > 0:
         lig_seq_all = [[seq[0:12][-1]," ".join(seq[12:].split()[1:])+" "] for seq in pdbseqs]

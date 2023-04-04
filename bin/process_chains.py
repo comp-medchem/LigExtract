@@ -111,7 +111,7 @@ for pdbname in pdbs_lst:
         testprotein_chain = testprotein_chain.groupby([0])[1].agg(lambda x: ','.join(x))
 
     chain2uniprot = {}
-    with gzip.open(f"../data/pdb_chain_uniprot.csv.gz") as f:
+    with gzip.open(f"~/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
         for ln in f: # PDB  CHAIN   SP_PRIMARY
             ln=ln.decode("utf-8").strip().split(",")
             if ln[0]==pdbcode.lower():
