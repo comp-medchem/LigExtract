@@ -11,6 +11,6 @@ Software that allows large-scale ligand extraction from UniProt ID queries. Belo
 
 ## Running LigExtract
 
-1. Build dependencies (one-off downloads)
+Build dependencies (one-off downloads):
 
     bash build_dependencies.sh
