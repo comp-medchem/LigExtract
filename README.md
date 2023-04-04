@@ -11,7 +11,7 @@ Software that allows large-scale ligand extraction from UniProt ID queries. Belo
 
 ## Running LigExtract
 
-1. Add path to LigExtract/ligextract directory to $PATH
+1. git clone LigExtract into your home directory
 
 2. cd into your working directory. This is where all PDBs will be downloaded and processed. This directory must contain a file with a name following the format 
 
