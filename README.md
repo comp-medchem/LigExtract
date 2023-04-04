@@ -3,7 +3,7 @@
 ![](docs/sources/images/ligextract_logo.png)
 
 
-Software that allows large-scale ligand extraction from UniProt ID queries.
+Software that allows large-scale ligand extraction from UniProt ID queries. Below is the overall workflow of LigExtract:
 
 
 ![](docs/sources/images/scheme_app_nologo.png)
