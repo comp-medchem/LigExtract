@@ -36,7 +36,7 @@ with clean-up at the end:
         ligextract.sh -d myproteins -r 3 -o filter -c clean
 
 
-### Arguments of ligextract.sh:
+#### Arguments of ligextract.sh:
      -h    usage information
      -d    name of the directory that will be created with all PDBs. This will be the prefix for multiple files.
      -r    maximum PDB resolution accepted
