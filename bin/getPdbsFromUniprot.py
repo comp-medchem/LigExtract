@@ -6,11 +6,18 @@ import numpy as np
 from progress.bar import ChargingBar, Bar
 from time import sleep
 import requests
+from requests.adapters import HTTPAdapter, Retry
+from xml.etree import ElementTree
+from urllib.parse import urlparse, parse_qs, urlencode
 import subprocess
 import json
 import argparse
 import urllib
-
+from pathlib import Path
+home = str(Path.home())
+uniprot_fun = f'{home}/LigExtract/bin/'
+sys.path.insert(1, uniprot_fun)
+from uniprot_map_api import *
 
 parser = argparse.ArgumentParser(description='Find all PDB IDs corresponding to a list of Uniprot IDs using the RCSB PDB Search API')
 parser.add_argument('--outputDir', type=str, required=True, dest="targetdir",
@@ -29,61 +36,27 @@ resolution_lim = args.resolution_lim
 
 print("\n------------------  Collecting PDBs from Uniprot IDs provided  ------------------\n")
 
-def uniprot2pdb(uniprotID, resolution_limit):
-    sleep(5)
-    rowlim = 100
-    params = {"query": 
-    {"type": "group","logical_operator": "and","nodes": 
-    [
-    {"type": "terminal","service": "text", "parameters": {"operator": "exact_match", "value": f"{uniprotID.upper()}" , "attribute":"rcsb_polymer_entity_container_identifiers.reference_sequence_identifiers.database_accession"}},
-    {"type": "terminal", "service": "text","parameters": { "operator": "exact_match", "value": "UniProt","attribute": "rcsb_polymer_entity_container_identifiers.reference_sequence_identifiers.database_name"}},
-    {"type": "terminal","service": "text","parameters": {"operator": "less_or_equal","value": resolution_limit , "attribute":"rcsb_entry_info.resolution_combined"}}
-    ]},
-    "request_options": {"pager": {"start": 0,"rows": rowlim}},
-    "return_type": "polymer_entity"}
-    result = requests.get("https://search.rcsb.org/rcsbsearch/v1/query", {"json": json.dumps(params, separators=(",", ":"))})
-    res_stat = result.status_code
-    result = result.content.decode("utf-8")
-    if result == "":
-        if res_stat not in [200,204]: pdbmaplog.write(f"{uniprotID}: unssuccessful retrieval of uniprot ID\n")  
-        return []
-    result = eval(result)
-    cnt = result["total_count"]
-    if cnt > rowlim: 
-        params["request_options"] = {'pager': {'start': 0, 'rows': cnt}}
-        result = requests.get("https://search.rcsb.org/rcsbsearch/v1/query", {"json": json.dumps(params, separators=(",", ":"))})
-        result = eval(result.content.decode("utf-8"))
-    result=[x['identifier'] for x in result['result_set']]
-    result = [x.split("_")[0] for x in result]
-    return result
 
 
 def fastuniprot2pdb(uniprotLstFile, allpdbsTabl, resolution_limit):
-    url = 'https://www.uniprot.org/uploadlists/'
-    unip_q = " ".join(uniprotLstFile)
-    params = {
-    'from': 'ACC+ID',
-    'to': 'PDB_ID',
-    'format': 'tab',
-    'query': f'{unip_q}'
-    }
-    
-    data = urllib.parse.urlencode(params)
-    data = data.encode('utf-8')
-    req = urllib.request.Request(url, data)
-    with urllib.request.urlopen(req) as f:
-       response = f.read()
-    
-    response = [x.split("\t") for x in response.decode('utf-8').split("\n")]
-    response = response[:-1] #trim empty last line
-    
-    if len(response)==1:
+    for ntry in range(5):
+        try:
+            job_id = submit_id_mapping(from_db="UniProtKB_AC-ID", to_db="PDB", ids=uniprotLstFile)
+            break
+        except requests.HTTPError:
+            sleep(3)
+            print("retry uniprot mapping...")
+            continue
+    if check_id_mapping_results_ready(job_id):
+        link = get_id_mapping_results_link(job_id)
+        response = get_id_mapping_results_search(link)
+    else:
+        print("There was an issue with the server. Failed after 5 requests.")
+    response = [[x["from"], x["to"]] for x in response["results"]]
+    if len(response)==0:
        sys.exit("No retrieved PDBs")
-    
-    response = pd.DataFrame(response[1:], columns=response[0])
+    response = pd.DataFrame(response, columns=["From", "To"])
     print(f"{len(response)} retrieved PDBs")
-    
-    
     response = response[np.in1d(response.To, allpdbsTabl.query(f"RESOLUTION < {resolution_limit}").pdb)]
     print(f"{len(response)} PDBs under the set resolution")
     response = [list(x) for x in response.values]
@@ -98,6 +71,18 @@ all_pdbs = pd.DataFrame([ln.split("\t") for ln in all_pdbs[2:]], columns = all_p
 all_pdbs = all_pdbs.rename(columns={"IDCODE":"pdb"})[["pdb", "HEADER","RESOLUTION","EXPERIMENT TYPE (IF NOT X-RAY)"]]
 all_pdbs = all_pdbs.query("RESOLUTION != 'NOT'")
 resol_lst = [np.nanmax(np.array(x.replace("NOT","nan").strip().split(",")).astype(float)) if "," in x else x for x in all_pdbs.RESOLUTION]
+
+filter_lines = []
+for val in all_pdbs.RESOLUTION:
+    try:
+        float(val)
+        filter_lines.append(True)
+    except ValueError:
+        filter_lines.append(False)
+
+all_pdbs = all_pdbs[filter_lines]
+resol_lst = np.array(resol_lst)[filter_lines]
+
 all_pdbs.loc[:,"RESOLUTION"] = np.array(resol_lst).astype(float)
 
 uniprot_lst = np.unique([x.strip() for x in open(uniprot_lst).readlines()])
