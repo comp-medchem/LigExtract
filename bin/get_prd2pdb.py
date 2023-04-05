@@ -1,12 +1,9 @@
-# python ~/scripts/get_prd2pdb.py prd_cif_file
-# e.g.
-# python ~/scripts/get_prd2pdb.py prd-all.cif
-
-
 import pandas as pd
 import numpy as np
 import sys
 import linecache
+from pathlib import Path
+home = str(Path.home())
 
 cif_file = sys.argv[1] # prd-all.cif
 
@@ -30,11 +27,11 @@ prd2pdb = prd2pdb[1:]
 prd2pdb = pd.DataFrame(prd2pdb, columns=["prd_ID","pdb"])
 prd2lig = pd.DataFrame(prd2lig, columns=["prd_ID","pdblig_ID"])
 prd2lig = prd2lig.query("pdblig_ID != '?'")
-prd2pdb.to_csv("prd_to_pdb_IDs.txt", sep="\t", index=False)
-prd2lig.to_csv("prd_to_pdb_ligIDs.txt", sep="\t", index=False)
+prd2pdb.to_csv(f"{home}/LigExtract/data/prd_to_pdb_IDs.txt", sep="\t", index=False)
+prd2lig.to_csv(f"{home}/LigExtract/data/prd_to_pdb_ligIDs.txt", sep="\t", index=False)
 
-print("extracted PRD_IDs to PDB_IDS --> stored into prd_to_pdb_IDs.txt")
-print("extracted PRD_IDs to ligand IDS --> stored into prd_to_pdb_ligIDs.txt")
+print(f"extracted PRD_IDs to PDB_IDS --> stored in {home}/LigExtract/data/prd_to_pdb_IDs.txt")
+print(f"extracted PRD_IDs to ligand IDS --> stored in {home}/LigExtract/data/prd_to_pdb_ligIDs.txt")
 
 
 # Get all PRD instances and their sequences
@@ -69,4 +66,4 @@ for blockStart,blockStop in get_blocks:
 
 
 seq_list = pd.DataFrame(seq_list)
-seq_list.to_csv("~/LigExtract/data/prd_cmpds_seq_full_experim.txt", sep="\t", index=False, header=None)
+seq_list.to_csv(f"{home}/LigExtract/data/prd_cmpds_seq_full_experim.txt", sep="\t", index=False, header=None)

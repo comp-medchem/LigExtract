@@ -10,9 +10,6 @@
 #
 # This script creates a results folder if it does not exist already. Information of the run is stored in the .log file
 #
-# ---    USAGE    ----
-# python ~/scripts/extract_ligands.py <path-to-pdbs> <path-to-results-dir>
-#
 
 import pandas as pd
 import numpy as np
@@ -255,15 +252,15 @@ for instance_id,prd_id,asym_id,pdb in all_prds_chains.values:
     all_prds_chains_NEW.append([instance_id,prd_id,asym_id,pdb ])
 
 all_prds_chains_NEW = pd.DataFrame(all_prds_chains_NEW, columns = all_prds_chains.columns)
-all_prds_chains_NEW.to_csv("prdID_chain_pdb.txt", sep="\t", index=False)
+all_prds_chains_NEW.to_csv(f"{home}/LigExtract/data/prdID_chain_pdb.txt", sep="\t", index=False)
 
 
 # update prd_to_pdb_IDs.txt
-prd2pdb = pd.read_csv("prd_to_pdb_IDs.txt", sep="\t")
+prd2pdb = pd.read_csv(f"{home}/LigExtract/data/prd_to_pdb_IDs.txt", sep="\t")
 save_headers = prd2pdb.columns
 prd2pdb = np.vstack([prd2pdb.values, all_prds_chains_NEW[["prd_id", "pdb"]].values])
 prd2pdb = pd.DataFrame(prd2pdb, columns = save_headers)
-prd2pdb.to_csv("prd_to_pdb_IDs.txt", sep="\t", index=False)
+prd2pdb.to_csv(f"{home}/LigExtract/data/prd_to_pdb_IDs.txt", sep="\t", index=False)
 
 
 nonpolymer_cnt = {}
@@ -472,7 +469,7 @@ for pdbname in pdbs:
     
     cmpds = [cmpd[12:15].strip() for cmpd in formulas if ( countMolsAtoms(cmpd[19:70].strip())[0]>3 or np.isfinite(countMolsAtoms(cmpd[19:70].strip())[0])==False) and countMolsAtoms(cmpd[19:70].strip())[1]<10]
     # restore cmpds which are in BIRD
-    lig_ids_in_bird = pd.read_csv("prd_to_pdb_ligIDs.txt", sep="\t").pdblig_ID.values
+    lig_ids_in_bird = pd.read_csv(f"{home}/LigExtract/data/prd_to_pdb_ligIDs.txt", sep="\t").pdblig_ID.values
     cmpds = np.union1d(cmpds, np.intersect1d(cmpds_all,lig_ids_in_bird))
     cmpds_removed = np.setdiff1d(cmpds_all,cmpds)
     if len(cmpds_removed)>0: print("The following compounds do not comply wih the inclusion criteria of minimum 3 heavy atoms and maximum of 10 repeated molecules:",cmpds_removed)
