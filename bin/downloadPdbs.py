@@ -22,18 +22,7 @@ except FileExistsError:
     None
 
 pdbs2download = [x.lower() for x in uniprot_pdb_dict["pdb"].unique()]
-"""
-bar = Bar('Fetching PDB structures...', max=len(pdbs2download))
 
-for pdb in pdbs2download:
-    bar.next()
-    if f'{pdb.lower()}.pdb' in os.listdir(targetdir):
-        continue
-    sleep(2)
-    try: o=subprocess.check_output(f"wget https://files.rcsb.org/download/{pdb.lower()}.pdb --quiet -O {targetdir}/{pdb.lower()}.pdb", shell=True)
-    except subprocess.CalledProcessError:
-        print(f"failed {pdb}")
-"""
 
 # check is pdb is already downloaded 
 already_downloaded = [x.split(".")[0] for x in os.listdir(targetdir)]
@@ -47,4 +36,3 @@ if len(pdbs2download)>0:
 else:
     print("All PDBs already downloaded")
 
-#sys.exit(f"\n\n**** Finished collecting {len(pdbs2download)} PDBs for the user-provided Uniprot IDs!")
