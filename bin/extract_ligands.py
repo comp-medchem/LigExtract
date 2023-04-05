@@ -215,7 +215,10 @@ for pdb in pdbs:
             # translate asym_id to author ID
             all_prds_chains.append(body) # asym_id = label_asym_id (the new label)
 
-all_prds_chains = pd.concat(all_prds_chains)
+if len(all_prds_chains)>0:
+    all_prds_chains = pd.concat(all_prds_chains)
+else:
+    all_prds_chains = pd.DataFrame([],columns = ["instance_id","prd_id","asym_id","pdb"])
 
 # gather a new-2-old dictionary of chains
 pdb_auth_chains_dict = {}
