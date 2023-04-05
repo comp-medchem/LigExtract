@@ -109,7 +109,7 @@ uniprot2pdb_secondary = pd.read_csv(f"{protein_dir.split('/')[-1]}_process_unipr
 
 ## Removing x-ray additives and other solutes
 print("removing x-ray additives and other solutes listed in generic_solute_ligands.txt...")
-blacklisted = [ln.strip() for ln in open(f"~/LigExtract/data/generic_solute_ligands.txt").readlines()]
+blacklisted = [ln.strip() for ln in open(f"{HOME}/LigExtract/docs/generic_solute_ligands.txt").readlines()]
 
 rm_trash = []
 for blacklist in blacklisted:
@@ -187,7 +187,7 @@ for proteinfile in list_proteins:
     chains_w_Uniprot = np.unique([x[12] for x in uniprot_refs if x[33:41].strip() in uniprotid_alternates])
     # complete chains from the uniprot to chain list
     chains_w_Uniprot_alternate = []
-    with gzip.open(f"~/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
+    with gzip.open(f"{HOME}/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
         for ln in f:
             ln=ln.decode("utf-8").strip().split(",")
             if ln[0]==pdbcode.lower() and uniprotid in ln:
@@ -220,7 +220,7 @@ for proteinfile in list_proteins:
     if len(chain_ligs)>0:
         # cross-check with the chain-to-uniprot mapping provided by uniprot
         prot_chains = []
-        with gzip.open(f"~/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
+        with gzip.open(f"{HOME}/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
             for ln in f:
                 ln=ln.decode("utf-8").strip().split(",")
                 if ln[0]==pdbcode.lower():

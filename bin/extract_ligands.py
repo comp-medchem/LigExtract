@@ -58,7 +58,7 @@ if ("pdb_chain_uniprot.csv.gz" in os.listdir(f"{home}/LigExtract/data")) == Fals
     print("Expecting pdb_chain_uniprot.csv.gz to be in the 'data' directory but file cannot be found. Abort!")
     sys.exit(123)
 
-whitelisted_ligs = [ln.strip() for ln in open(f"{home}/LigExtract/data/whitelist_ligands.txt").readlines()]
+whitelisted_ligs = [ln.strip() for ln in open(f"{home}/LigExtract/docs/whitelist_ligands.txt").readlines()]
 
 uniprot2pdb = pd.read_csv(uniprot2pdb_file, sep="\t") 
 missing_downloads = np.setdiff1d(uniprot2pdb.pdb.str.lower(), [x.split(".")[0] for x in os.listdir(pdbpath) if x.endswith(".pdb")])
