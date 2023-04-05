@@ -33,7 +33,7 @@ This file will contain a list of uniprot IDs (see example in docs)
 
         ligextract.sh -d myproteins -r 3 -o cluster -c nan
 
-with clean-up at the end:
+with clean-up at the end (i.e. removing all *.cif files):
 
         ligextract.sh -d myproteins -r 3 -o filter -c clean
 
