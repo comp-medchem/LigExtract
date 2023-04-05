@@ -37,8 +37,8 @@ with clean-up at the end:
 
 
 ### Arguments of ligextract.sh:
-    * -h    usage information
-    * -d    name of the directory that will be created with all PDBs. This will be the prefix for multiple files.
-    * -r    maximum PDB resolution accepted
-    * -o    selected ligand selection mode: can be 'filter' or 'cluster'
-    * -c    cleaning outcome: 'clean' will delete all *.cif files; 'nan' will keep all *.cif files.
+     -h    usage information
+     -d    name of the directory that will be created with all PDBs. This will be the prefix for multiple files.
+     -r    maximum PDB resolution accepted
+     -o    selected ligand selection mode: can be 'filter' or 'cluster'
+     -c    cleaning outcome: 'clean' will delete all *.cif files; 'nan' will keep all *.cif files.
