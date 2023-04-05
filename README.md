@@ -11,7 +11,7 @@ Software that allows large-scale ligand extraction from UniProt ID queries. Belo
 
 ## Running LigExtract
 
-1. git clone LigExtract into your home directory
+1. git clone LigExtract into your home directory. Make ligextract.sh inside of bin executable (i.e. chmod 755 ligextract.sh)
 
 2. cd into your working directory. This is where all PDBs will be downloaded and processed. This directory must contain a file with a name following the format 
 
@@ -26,3 +26,11 @@ This file will contain a list of uniprot IDs (see example in docs)
 3. Build dependencies (one-off downloads):
         
         bash build_dependencies.sh
+
+4. Run LigExtract for your query proteins in your *_uniprot_list.txt file (without cleaning-up at the end)
+
+        ligextract.sh -d myproteins -r 3 -o cluster -c nan
+
+with clean-up at the end:
+
+        ligextract.sh -d myproteins -r 3 -o filter -c clean
