@@ -21,6 +21,8 @@ For example, my project is called "myproteins" so the file will be named
         
         myproteins_uniprot_list.txt
 
+This file will contain a list of uniprot IDs (see example in docs)
+
 3. Build dependencies (one-off downloads):
         
         bash build_dependencies.sh
