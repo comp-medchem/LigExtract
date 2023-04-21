@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# ligextract.sh -d myproteins -r 3 -o cluster -c nan
-# ligextract.sh -d myproteins -r 3 -o filter -c clean
+# ligextract.sh -d myproteins -r 3.5 -o cluster -c nan
+# ligextract.sh -d myproteins -r 3.5 -o filter -c clean
 
 while getopts ':h?d:r:o:c:' opts; do
   case ${opts} in
