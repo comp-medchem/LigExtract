@@ -31,16 +31,15 @@ This file will contain a list of uniprot IDs (see example in docs)
 
 **5.** Run LigExtract for your query proteins in your *_uniprot_list.txt file (without cleaning-up at the end).
 
-  In this example, ligextract will only consider PDBs up to 3.5 Angstrom resolution and will employ the "cluster" mode (i.e., all ligands that survive filtration are kept, even if duplicated)
-  
-  Notice how "myproteins" is the name provided to the -d argument, as this must correspond to the prefix of the *_uniprot_list.txt file.
-
         ligextract.sh -d myproteins -r 3.5 -o cluster -c nan
 
 with clean-up at the end (i.e. removing all *.cif files):
 
         ligextract.sh -d myproteins -r 3.5 -o filter -c clean
 
+  In this example, ligextract will only consider PDBs up to 3.5 Angstrom resolution and will employ the "cluster" mode (i.e., all ligands that survive filtration are kept, even if duplicated)
+  
+  Notice how "myproteins" is the name provided to the -d argument, as this must correspond to the prefix of the *_uniprot_list.txt file.
 
 #### Arguments of ligextract.sh:
      -h    usage information
