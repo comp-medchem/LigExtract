@@ -53,3 +53,7 @@ with clean-up at the end (i.e. removing all *.cif files):
 #### Usage Notes:
 
 - ligextract will prompt the user to manually reject or accept each of all experiment methods used to obtain the PDBs associated with the uniprot queries
+
+
+#### _________
+If you encounter any errors or issues, or if you have any suggestions, please email Natalia Aniceto at: nataliaaniceto[at]ff.ul.pt
