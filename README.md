@@ -40,6 +40,7 @@ with clean-up at the end (i.e. removing all *.cif files):
   In this example, ligextract will only consider PDBs up to 3.5 Angstrom resolution and will employ the "cluster" mode (i.e., all ligands that survive filtration are kept, even if duplicated)
   
   Notice how "myproteins" is the name provided to the -d argument, as this must correspond to the prefix of the *_uniprot_list.txt file.
+  
 
 #### Arguments of ligextract.sh:
      -h    usage information
@@ -47,3 +48,8 @@ with clean-up at the end (i.e. removing all *.cif files):
      -r    maximum PDB resolution accepted
      -o    selected ligand selection mode: can be 'filter' or 'cluster'
      -c    cleaning outcome: 'clean' will delete all *.cif files; 'nan' will keep all *.cif files.
+
+     
+#### Usage Notes:
+
+- ligextract will prompt the user to manually reject or accept each of all experiment methods used to obtain the PDBs associated with the uniprot queries
