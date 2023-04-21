@@ -1,5 +1,3 @@
-# python ~/scripts/getPdbsFromUniprot.py --outputDir targetsofinterest --uniprots uniprot_list.txt --allPdbs allpdbs.txt --maxResol 2.5
-
 import sys, os
 import pandas as pd
 import numpy as np
@@ -88,13 +86,10 @@ all_pdbs.loc[:,"RESOLUTION"] = np.array(resol_lst).astype(float)
 uniprot_lst = np.unique([x.strip() for x in open(uniprot_lst).readlines()])
 print(f'There are {len(uniprot_lst)} unique Uniprot IDs that will be processed.\n')
 
-pdbmaplog = open("pdb_mapping.log","w")
 
 bar = Bar('Fetching PDB codes from Uniprot IDs... ', max=len(uniprot_lst))
 
 uniprot_pdb_dict = fastuniprot2pdb(uniprot_lst, all_pdbs, resolution_lim)
-
-pdbmaplog.close()
 
 uniprot_pdb_dict = pd.DataFrame(uniprot_pdb_dict, columns = ["uniprot","pdb"])
 missing = np.setdiff1d(uniprot_pdb_dict.pdb.values, all_pdbs.pdb.values)

@@ -1,7 +1,3 @@
-#py3env
-# USAGE:
-# python ~/scripts/find_ligands.py try_pdbs try_pdbs_LIGS 6 well_known_targets_PDBs.txt
-
 import pandas as pd
 import numpy as np
 from biopandas.pdb import PandasPdb

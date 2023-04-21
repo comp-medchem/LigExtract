@@ -1,5 +1,3 @@
-# python ~/scripts/filter_ligands.py prot_dir ligands_dir > filter_ligands.log
-
 import pandas as pd
 import numpy as np
 from biopandas.pdb import PandasPdb

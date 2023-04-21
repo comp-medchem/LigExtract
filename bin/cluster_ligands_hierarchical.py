@@ -290,6 +290,7 @@ for p_i, prot in enumerate(prot_lst):
         sys.stderr.write(f"\n\n*** Protein {prot} ({p_i+1}/{len(prot_lst)}) : bypass as it has no found ligands in any PDBs.\n")
         print(f"bypass {prot} as it has no found ligands in any PDBs.")
         continue
+    # reset folder in case this was already run before for this protein
     subprocess.run(f"rm -Rf {prot_dir}/pdbs_filtered_chains/{prot}; mkdir {prot_dir}/pdbs_filtered_chains/{prot}", shell=True)
     sys.stderr.write(f"\n\n*** protein {prot} ({p_i+1}/{len(prot_lst)}) ***\n")
     bar = Bar("Aligning PDBs ... ", max=pockets_prot.pdbcode.nunique()) 
@@ -314,7 +315,7 @@ for p_i, prot in enumerate(prot_lst):
             protein_pdb.df["HETATM"] = protein_pdb.df["HETATM"][np.in1d(protein_pdb.df["HETATM"].chain_id, allcontactchains)]
             protein_pdb.to_pdb(path=f"{prot_dir}/pdbs_filtered_chains/{prot}/{pdb}_keychain{'-'.join(chainset)}.pdb", records=None, gz=False, append_newline=True)
 
-    rmsd=subprocess.run(f"pymol -cq ~/scripts/align_pdbs_pockets.py -- {prot_dir}/pdbs_filtered_chains/{prot}", shell=True, capture_output=True)
+    rmsd=subprocess.run(f"pymol -cq ~/LigExtract/bin/align_pdbs_pockets.py -- {prot_dir}/pdbs_filtered_chains/{prot}", shell=True, capture_output=True)
     refpdb_align = [x for x in os.listdir(f'{prot_dir}/pdbs_filtered_chains/{prot}') if x.endswith(".pdb")][0]
     if len(pockets_prot.pdbcode.unique())>1:
         rmsd = rmsd.stdout.decode("utf=8")
@@ -417,11 +418,11 @@ for p_i, prot in enumerate(prot_lst):
     for c in ligand_centroid_sorted.cluster.unique():
         pocket_ligs = ligand_centroid_sorted.query(f"cluster == '{c}'").ligandfile.values
         pocket_ligs = " ".join(pocket_ligs)
-        subprocess.run(f"pymol -cq ~/scripts/align_ligs_figures.py -- pocketcluster{c} {prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs {pocket_ligs}", shell=True, capture_output=True)
+        subprocess.run(f"pymol -cq ~/LigExtract/bin/align_ligs_figures.py -- pocketcluster{c} {prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs {pocket_ligs}", shell=True, capture_output=True)
     
     sys.stderr.write(f"Clustered pockets have been stored in {prot}_pockets_hierarch-clusters.txt. Pictures of the different pocket clusters created in {prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs")
     
     # Produce one global image where each pocket has a color
-    subprocess.run(f"pymol -cq ~/scripts/allpockets_figure.py -- {prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs {prot}_pockets_hierarch-clusters.txt", shell=True, capture_output=True)
+    subprocess.run(f"pymol -cq ~/LigExtract/bin/allpockets_figure.py -- {prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs {prot}_pockets_hierarch-clusters.txt", shell=True, capture_output=True)
 
 sys.exit(f"\n\nFinished Clustering pockets")

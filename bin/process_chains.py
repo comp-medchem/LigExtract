@@ -1,5 +1,3 @@
-# python ~/scripts/process_chains.py --pdbspath targetsofinterest --pdbsToRedo None
-
 import sys,os
 import numpy as np
 import urllib
