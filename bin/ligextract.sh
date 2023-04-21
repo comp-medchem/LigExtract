@@ -54,7 +54,10 @@ if [[ $? = 123 ]]; then printf "\nAbort workflow! inspect the logs to fix any is
 redo_pdbs=`grep "Request to Uniprot failed" "$d"_process_uniprot_chains.err | cut -f1 -d":"`
 echo `grep "Request to Uniprot failed" "$d"_process_uniprot_chains.err | wc -l` "failed PDBs."
 sed -i '/Request to Uniprot failed after/d' "$d"_process_uniprot_chains.err
-if [[ $redo_pdbs != "" ]]; then python ~/LigExtract/bin/process_chains.py --pdbspath $d --pdbsToRedo $redo_pdbs; fi 
+if [[ $redo_pdbs != "" ]]; then 
+	echo "LigExtract will repeat chain processing for failed PDBs"
+	python ~/LigExtract/bin/process_chains.py --pdbspath $d --pdbsToRedo $redo_pdbs; 
+fi 
 
 
 ######################################################################################################################
