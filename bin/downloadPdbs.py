@@ -26,7 +26,8 @@ pdbs2download = [x.lower() for x in uniprot_pdb_dict["pdb"].unique()]
 
 # check is pdb is already downloaded 
 already_downloaded = [x.split(".")[0] for x in os.listdir(targetdir)]
-pdbs2download = np.setdiff1d(already_downloaded, pdbs2download)
+
+pdbs2download = np.setdiff1d(pdbs2download, already_downloaded)
 
 if len(pdbs2download)>0:
     print(len(pdbs2download), "PDBs queued to download")
