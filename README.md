@@ -11,7 +11,7 @@ Software that allows large-scale ligand extraction from UniProt ID queries. Belo
 
 ## Dependencies
 
-LigExtract has been developed on Linux and written in Python 3. It requires PyMol to be installed.
+LigExtract was developed on Linux and written in Python 3. It requires PyMol to be installed.
 
 Depending on the system, you might have trouble running pymol from within LigExtract's conda env.
 You can run the command below, once you activated the conda env, to check if pymol can be used properly.
