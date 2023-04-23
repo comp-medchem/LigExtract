@@ -18,7 +18,7 @@ You can run the command below, once you activated the conda env, to check if pym
 
     pymol -cq
 
-If this command returns an error indicating that pymol cannot be found, you can replace cluster_ligands_hierarchical.py by cluster_ligands_hierarchical_fixPymol.py by simply renaming the first script or moving it out of the bin directory, and removing the "_fixPymol" portion of the second script.
+If this command returns an error indicating that pymol cannot be found, you can replace `cluster_ligands_hierarchical.py` by `cluster_ligands_hierarchical_fixPymol.py` by simply renaming the first script or moving it out of the bin directory, and removing the "_fixPymol" portion of the second script. In order for `cluster_ligands_hierarchical_fixPymol.py` to work, you must make sure that `source deactivate` deactivates LigExtracts environment without reverting into any base environment.
 
 
 ## Running LigExtract
