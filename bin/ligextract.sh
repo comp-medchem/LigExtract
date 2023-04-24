@@ -40,7 +40,7 @@ fi
 if compgen -G "*.gz" > /dev/null; then
     gunzip *.gz
     #rename 'y/A-Z/a-z/' *.pdb
-    for file in *.txt; do mv -- $file $(echo $file | tr 'A-Z' 'a-z'); done
+    for file in *.pdb; do mv -- $file $(echo $file | tr 'A-Z' 'a-z'); done
     mv *.pdb $d/.
 fi
 
