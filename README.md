@@ -3,15 +3,19 @@
 ![](docs/sources/images/ligextract_logo.png)
 
 
-Software that allows large-scale ligand extraction from UniProt ID queries. Below is the overall workflow of LigExtract:
+Software that allows large-scale ligand extraction from UniProt ID queries. 
+
+Developed by Natália Aniceto (ORCID 0000-0001-7039-0022), Nuno Martinho (ORCID 0000-0001-5102-4756) and Rita Guedes (ORCID 0000-0002-5790-9181).
+
+Below is the overall workflow of LigExtract:
 
 
 ![](docs/sources/images/scheme_app_nologo.png)
 
 
-## Dependencies
+## Dependencies and troubleshooting
 
-LigExtract was developed on Linux and written in Python 3. It requires PyMol to be installed.
+LigExtract was developed on Linux and written in Python 3. **It requires PyMol to be installed**.
 
 Depending on the system, you might have trouble running pymol from within LigExtract's conda env.
 You can run the command below, once you activated the conda env, to check if pymol can be used properly.
@@ -70,7 +74,7 @@ with clean-up at the end (i.e. removing all *.cif files):
      
 #### Usage Notes:
 
-- ligextract will prompt the user to manually reject or accept each of all experiment methods used to obtain the PDBs associated with the uniprot queries
+- LigExtract will prompt the user to manually reject or accept each of all experiment methods used to obtain the PDBs associated with the uniprot queries.
 
 
 #### _________
