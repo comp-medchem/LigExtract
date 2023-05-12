@@ -31,20 +31,21 @@ printf "\n################ Processing [${d}] ################\n"
 python ~/LigExtract/bin/getPdbsFromUniprot.py --outputDir $d --uniprots "$d"_uniprot_list.txt --allPdbs ~/LigExtract/data/allpdbs.txt --maxResol $res
 if [[ $? = 123 ]]; then printf "\nAbort workflow! inspect the logs to fix any issues."; exit 1 ; fi
 rm -f pdbs2download.txt
-python ~/LigExtract/bin/downloadPdbs.py --outputDir $d #> pdb_download.log
+python ~/LigExtract/bin/downloadPdbs.py --outputDir $d 
 #if [[ $? = 123 ]]; then echo "Abort workflow! inspect the logs to fix any issues."; exit 1 ; fi
 if [[ -f pdbs2download.txt ]]; then 
-	  bash ~/LigExtract/bin/pdb_batch_download.sh -f pdbs2download.txt -p
+	  bash ~/LigExtract/bin/pdb_batch_download.sh -f pdbs2download.txt -p > pdb_download.log
 fi
 
-# catch failed download --> update *_pdb_uniprot_filteredlist.txt
+# catch failed download and update *_pdb_uniprot_filteredlist.txt
+python ~/LigExtract/bin/bypass_missing_pdbs.py
 
-if compgen -G "*.gz" > /dev/null; then
-    gunzip *.gz
-    #rename 'y/A-Z/a-z/' *.pdb
-    for file in *.pdb; do mv -- $file $(echo $file | tr 'A-Z' 'a-z'); done
-    mv *.pdb $d/.
-fi
+### RENAMING PDBs to lowercase: no longer needed
+#if compgen -G "*.gz" > /dev/null; then
+#    gunzip *.gz
+#    for file in *.pdb; do mv -- $file $(echo $file | tr 'A-Z' 'a-z'); done
+#    mv *.pdb $d/.
+#fi
 
 
 > "$d"_process_uniprot_chains.err
