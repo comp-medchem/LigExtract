@@ -80,7 +80,7 @@ If you cannot run pymol from the command line once LigExtract's environment is a
 
 2) If you still have an error when running `cluster_ligands_hierarchical.py` ("FileNotFoundError: No such file or directory: 'myproteins/pdbs_filtered_chains/PXXXX/aligned'"), try to replace `deactivate` by `{HOME}/anaconda3/bin/deactivate` inside that script (3 locations in the script). Note that this command should be used exactly as is, because `HOME` is already a variable in the python script that grabs your own home path. This is the typical path to the `deactivate` executable, and if your path is different you must replace it.
 
-3) If you still get that error when running `cluster_ligands_hierarchical.py`, replace `cluster_ligands_hierarchical.py` by `cluster_ligands_hierarchical_fixPymol_hidecoda.py`, making sure you rename the second script with the name of the first.
+3) If you still get that error when running `cluster_ligands_hierarchical.py`, replace `cluster_ligands_hierarchical.py` by `cluster_ligands_hierarchical_fixPymol_hideconda.py`, making sure you rename the second script with the name of the first.
 
 #### _________
 If you encounter any errors or issues, or if you have any suggestions, please email Natalia Aniceto at: nataliaaniceto[at]ff.ul.pt
