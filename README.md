@@ -5,7 +5,7 @@
 
 Software that allows large-scale ligand extraction from UniProt ID queries. 
 
-Developed by Natália Aniceto (ORCID 0000-0001-7039-0022), Nuno Martinho (ORCID 0000-0001-5102-4756) and Rita Guedes (ORCID 0000-0002-5790-9181).
+Developed by **Natália Aniceto** (ORCID 0000-0001-7039-0022), **Nuno Martinho** (ORCID 0000-0001-5102-4756) and **Rita Guedes** (ORCID 0000-0002-5790-9181).
 
 Below is the overall workflow of LigExtract:
 
@@ -13,7 +13,7 @@ Below is the overall workflow of LigExtract:
 ![](docs/sources/images/scheme_app_nologo.png)
 
 
-## Dependencies and troubleshooting
+## Dependencies
 
 LigExtract was developed on Linux and written in Python 3. **It requires PyMol to be installed**.
 
@@ -22,13 +22,7 @@ Once you installed the condda env provided and activated it, you can run the com
 
     pymol -cq
 
-If this command returns an error indicating that pymol cannot be found:
-
-1) You should replace `cluster_ligands_hierarchical.py` inside `bin` by `cluster_ligands_hierarchical_fixPymol.py` by simply renaming the first script or moving it out of the bin directory, and removing the "_fixPymol" portion of the second script. In order for `cluster_ligands_hierarchical_fixPymol.py` to work, you must make sure that `source deactivate` deactivates LigExtract's environment without reverting into any base environment.
-
-2) If you still have an error when running `cluster_ligands_hierarchical.py` ("FileNotFoundError: No such file or directory: 'myproteins/pdbs_filtered_chains/PXXXX/aligned'"), try to replace `deactivate` by `{HOME}/anaconda3/bin/deactivate` inside that script (3 locations in the script). Note that this command should be used exactly as is, because `HOME` is already a variable in the python script that grabs your own home path. This is the typical path to the `deactivate` executable, and if your path is different you must replace it.
-
-3) If you still get that error when running `cluster_ligands_hierarchical.py`, replace `cluster_ligands_hierarchical.py` by `cluster_ligands_hierarchical_fixPymol_hidecoda.py`, making sure you rename the second script with the name of the first.
+If this command returns an error indicating that pymol cannot be found, go to the troubleshooting section.
 
 
 ## Running LigExtract
@@ -75,7 +69,18 @@ with clean-up at the end (i.e. removing all *.cif files):
 #### Usage Notes:
 
 - LigExtract will prompt the user to manually reject or accept each of all experiment methods used to obtain the PDBs associated with the uniprot queries.
+- LigExtract will bypass entries with no PDB-format file available. Read more on what causes this situation on https://www.rcsb.org/docs/general-help/structures-without-legacy-pdb-format-files. Eventually we plan to accomodate these exceptions but at the moment LigExtract is not capable on handling them.
 
+
+#### Troubleshooting
+
+If you cannot run pymol from the command line once LigExtract's environment is activate, you can try these alternative conditions:
+
+1) You should replace `cluster_ligands_hierarchical.py` inside `bin` by `cluster_ligands_hierarchical_fixPymol.py` by simply renaming the first script or moving it out of the bin directory, and removing the "_fixPymol" portion of the second script. In order for `cluster_ligands_hierarchical_fixPymol.py` to work, you must make sure that `source deactivate` deactivates LigExtract's environment without reverting into any base environment.
+
+2) If you still have an error when running `cluster_ligands_hierarchical.py` ("FileNotFoundError: No such file or directory: 'myproteins/pdbs_filtered_chains/PXXXX/aligned'"), try to replace `deactivate` by `{HOME}/anaconda3/bin/deactivate` inside that script (3 locations in the script). Note that this command should be used exactly as is, because `HOME` is already a variable in the python script that grabs your own home path. This is the typical path to the `deactivate` executable, and if your path is different you must replace it.
+
+3) If you still get that error when running `cluster_ligands_hierarchical.py`, replace `cluster_ligands_hierarchical.py` by `cluster_ligands_hierarchical_fixPymol_hidecoda.py`, making sure you rename the second script with the name of the first.
 
 #### _________
 If you encounter any errors or issues, or if you have any suggestions, please email Natalia Aniceto at: nataliaaniceto[at]ff.ul.pt
