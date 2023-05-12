@@ -37,6 +37,8 @@ if [[ -f pdbs2download.txt ]]; then
 	  bash ~/LigExtract/bin/pdb_batch_download.sh -f pdbs2download.txt -p
 fi
 
+# catch failed download --> update *_pdb_uniprot_filteredlist.txt
+
 if compgen -G "*.gz" > /dev/null; then
     gunzip *.gz
     #rename 'y/A-Z/a-z/' *.pdb
