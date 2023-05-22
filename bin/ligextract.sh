@@ -33,6 +33,7 @@ if [[ $? = 123 ]]; then printf "\nAbort workflow! inspect the logs to fix any is
 rm -f pdbs2download.txt
 python ~/LigExtract/bin/downloadPdbs.py --outputDir $d 
 #if [[ $? = 123 ]]; then echo "Abort workflow! inspect the logs to fix any issues."; exit 1 ; fi
+> pdb_download.log
 if [[ -f pdbs2download.txt ]]; then 
 	  bash ~/LigExtract/bin/pdb_batch_download.sh -f pdbs2download.txt -p > pdb_download.log
 fi
@@ -41,11 +42,11 @@ fi
 python ~/LigExtract/bin/bypass_missing_pdbs.py
 
 ### RENAMING PDBs to lowercase: no longer needed
-#if compgen -G "*.gz" > /dev/null; then
-#    gunzip *.gz
-#    for file in *.pdb; do mv -- $file $(echo $file | tr 'A-Z' 'a-z'); done
-#    mv *.pdb $d/.
-#fi
+if compgen -G "*.gz" > /dev/null; then
+    gunzip *.gz
+    #for file in *.pdb; do mv -- $file $(echo $file | tr 'A-Z' 'a-z'); done
+    mv *.pdb $d/.
+fi
 
 
 > "$d"_process_uniprot_chains.err

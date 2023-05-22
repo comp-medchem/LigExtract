@@ -60,6 +60,7 @@ whitelisted_ligs = [ln.strip() for ln in open(f"{home}/LigExtract/docs/whitelist
 uniprot2pdb = pd.read_csv(uniprot2pdb_file, sep="\t") 
 missing_downloads = np.setdiff1d(uniprot2pdb.pdb.str.lower(), [x.split(".")[0] for x in os.listdir(pdbpath) if x.endswith(".pdb")])
 extra_downloads = np.setdiff1d([x.split(".")[0] for x in os.listdir(pdbpath) if x.endswith(".pdb")], uniprot2pdb.pdb.str.lower())
+pdbs = [x for x in os.listdir(pdbpath) if x.endswith(".pdb")]
 
 if len(missing_downloads)>0 or len(extra_downloads)>0:
     if len(missing_downloads)>0: sys.stderr.write(f"\nWARNING!!!  There are {len(missing_downloads)} pdbs missing ({' '.join(missing_downloads)}). Please re-run the downloadPdbs.py command\n")
@@ -196,8 +197,10 @@ if len(pdbs2extr)>0:
     sys.stderr.write("\n")
 
 # After all cifs have been downloaded, screen them to grab PRD IDs
+bar = Bar('Extract all chains with PRD code... ', max=len(pdbs))
 all_prds_chains = []
 for pdb in pdbs:
+    bar.next()
     pdbcode = pdb.split(".")[0]
     ciffile = open(f"cifs/{pdbcode}.cif").readlines()
     ciffile = "".join(ciffile).split("# \n")
@@ -207,7 +210,7 @@ for pdb in pdbs:
         if ciffile[0].startswith("loop_"):
             headers = [x.split(".")[-1].strip() for x in ciffile[1:] if x.startswith("_pdbx_molecule")]
             body = ciffile[len(headers)+1:]
-            body = pd.DataFrame([x.strip().split() for x in body], columns=headers)
+            body = pd.DataFrame([shlex.split(x.strip(), posix=False) for x in body], columns=headers)
             body.loc[:,"pdb"] = pdbcode
             # translate asym_id to author ID
             all_prds_chains.append(body) # asym_id = label_asym_id (the new label)
@@ -217,33 +220,34 @@ if len(all_prds_chains)>0:
 else:
     all_prds_chains = pd.DataFrame([],columns = ["instance_id","prd_id","asym_id","pdb"])
 
+
 # gather a new-2-old dictionary of chains
+bar = Bar('Building chains dictionary... ', max=len(pdbs))
 pdb_auth_chains_dict = {}
 for pdb in pdbs:
+    bar.next()
     pdbcode = pdb.split(".")[0]
     ciffile = open(f"cifs/{pdbcode}.cif").readlines()
     ciffile = "".join(ciffile).split("# \n")
-    ciffile = [x for x in ciffile if "_struct_conn." in x]
+    ciffile = [x for x in ciffile if "_atom_site." in x and "'_atom_site." not in x]
     if len(ciffile)>0:
         ciffile = ciffile[0].strip().split("\n")
         if ciffile[0].startswith("loop_"):
-            headers = [x.split(".")[-1].strip() for x in ciffile[1:] if x.startswith("_struct_conn")]
+            headers = [x.split(".")[-1].strip() for x in ciffile[1:] if x.startswith("_atom_site")]
             body = ciffile[len(headers)+1:]
-            line_length = max([len(ln) for ln in body])
+            line_length = max([len(ln.split()) for ln in body])
             lines2mergeup = []
             for i,ln in enumerate(body[:-1]):
-                if len(ln)<line_length/2:
+                if len(ln.split())<line_length/2:
                     lines2mergeup.append(i)
             for i in lines2mergeup:
                 body[i-1] = body[i-1]+body[i]
                 body[i] = ''
-            body = pd.DataFrame([x.strip().split() for x in body], columns=headers)
-            pdb_auth_chains1 = body[["ptnr1_label_asym_id", "ptnr1_auth_asym_id"]].drop_duplicates()
-            pdb_auth_chains2 = body[["ptnr2_label_asym_id", "ptnr2_auth_asym_id"]].drop_duplicates()
-            pdb_auth_chains1.columns = ["label_asym_id", "auth_asym_id"]
-            pdb_auth_chains2.columns = ["label_asym_id", "auth_asym_id"]
-            pdb_auth_chains = pd.concat([pdb_auth_chains2,pdb_auth_chains1]).drop_duplicates()
+            # protect spaces inside quotation marks
+            body = pd.DataFrame([shlex.split(ln.strip(), posix=False) for ln in body], columns=headers)
+            pdb_auth_chains = body[["auth_asym_id", "label_asym_id"]].drop_duplicates()
             pdb_auth_chains_dict[pdbcode] = {newlabel:authlabel for authlabel,newlabel in pdb_auth_chains[["auth_asym_id", "label_asym_id"]].values}
+
 
 # translate PRD's chains (reported as label_asym_id) to auth_asym_id
 all_prds_chains_NEW = []
@@ -318,9 +322,7 @@ for pdbname in pdbs:
             body = []
             for x in block[1:]:
                 if x.startswith("_pdbx") == False:
-                    try: body.append(shlex.split(x.strip()))
-                    except ValueError: # Has quotation mark
-                        body.append(shlex.split(x.replace("'","").replace('"','').strip()))
+                    body.append(shlex.split(x.strip(), posix=False))
             nonpoly = [x[-1] for x in body if len(x)>0] 
         else:
             nonpoly = [x.strip().split()[-1] for x in block if x.startswith("_pdbx_entity_nonpoly.comp_id")]
@@ -575,7 +577,7 @@ for pdbname in pdbs:
                 if len(body[x].split())==0: continue
                 body[x] = body[x]+body[x+1]
                 body[x+1]=""
-            body = [shlex.split(x) for x in body if "Glycosylation" in x]
+            body = [shlex.split(x.strip(), posix=False) for x in body if "Glycosylation" in x]
             glycosylation_chains = pd.DataFrame(body, columns=headers)
             glycosylation_chains = glycosylation_chains[["ptnr1_auth_asym_id","ptnr2_auth_asym_id"]] 
             glycosylation_chains = glycosylation_chains.values.flatten()
@@ -601,7 +603,7 @@ for pdbname in pdbs:
         block = [x for x in cif if "_pdbx_branch_scheme." in x and x.split("\n")[1].startswith("_pdbx_branch_scheme.")][0].split("\n")[:-1]
         if block[0]=="loop_":
             headers = [x.replace("_pdbx_branch_scheme.","").strip() for x in block if x.startswith("_pdbx")]
-            body = [shlex.split(x.strip()) for x in block[1:] if x.startswith("_pdbx") == False]
+            body = [shlex.split(x.strip(), posix=False) for x in block[1:] if x.startswith("_pdbx") == False]
             oligo_entities_chains = pd.DataFrame(body, columns=headers)
             oligo_entities_chains = oligo_entities_chains[np.in1d(oligo_entities_chains.entity_id, oligo_entities)]
         else:
