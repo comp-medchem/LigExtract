@@ -161,7 +161,7 @@ for pdb in pdbs_in_pockets:
     
     if has_rebuilt_lig == True:
         # cross ref with PRDs
-        prd2pdb = pd.read_csv("prd_to_pdb_IDs.txt", sep="\t")
+        prd2pdb = pd.read_csv(f"{HOME}/LigExtract/data/prd_to_pdb_IDs.txt", sep="\t")
         prd2pdb = prd2pdb.query(f"pdb == '{pdb}'").prd_ID.drop_duplicates().values
         rebuilt_ligs = [x for x in os.listdir(lig_dir) if pdb in x and "lig_chain-" in x]
         if len(prd2pdb)==0:

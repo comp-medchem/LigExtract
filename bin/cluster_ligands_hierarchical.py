@@ -14,7 +14,7 @@ from itertools import combinations
 from sklearn.cluster import AgglomerativeClustering
 from scipy.spatial.distance import euclidean
 from copy import copy
-
+HOME = str(Path.home())
 
 parser = argparse.ArgumentParser(description='Final procedure do decide which ligands are the most likely in a given protein, using different criteria that looks into ligand structure and annotation, ligand placement in the pocket, etc.')
 parser.add_argument('--pdbPath', type=str, required=True, dest="prot_dir", help='Path to directory containing all PDBs to process.')
@@ -159,7 +159,7 @@ for pdb in pdbs_in_pockets:
     
     if has_rebuilt_lig == True:
         # cross ref with PRDs
-        prd2pdb = pd.read_csv("prd_to_pdb_IDs.txt", sep="\t")
+        prd2pdb = pd.read_csv(f"{HOME}/LigExtract/data/prd_to_pdb_IDs.txt", sep="\t")
         prd2pdb = prd2pdb.query(f"pdb == '{pdb}'").prd_ID.drop_duplicates().values
         rebuilt_ligs = [x for x in os.listdir(lig_dir) if pdb in x and "lig_chain-" in x]
         if len(prd2pdb)==0:

@@ -153,6 +153,7 @@ def findAllLinks(residues_lst, restypes):
 
 def countMolsAtoms(formula):
     # takes chemical formula from "FORMUL" strings
+    formula=formula.replace("*","")
     wheremolcount = formula.find("(")
     if wheremolcount == -1: molcount = 1
     elif wheremolcount == 0: molcount = 1
@@ -195,6 +196,7 @@ if len(pdbs2extr)>0:
             subprocess.run(f"wget https://files.rcsb.org/view/{pdbcode.lower()}.cif --quiet -O cifs/{pdbcode}.cif", shell=True)
     
     sys.stderr.write("\n")
+
 
 # After all cifs have been downloaded, screen them to grab PRD IDs
 bar = Bar('Extract all chains with PRD code... ', max=len(pdbs))
@@ -346,9 +348,18 @@ for pdbname in pdbs:
     chunks = list(zip(chunks,list(chunks[1:])+[len(moltype)]))
     moltype = [moltype[a:b] for a,b in chunks]
     moltype_prot = []
-    for m in moltype:
-        if "CHAIN:" in "".join(m) and "EC:" in "".join(m):
-            moltype_prot.append([x.split("CHAIN:")[-1].split(";")[0].strip() for x in m if "CHAIN:" in x])
+    for molblock in moltype:
+        #if "CHAIN:" in "".join(molblock) and "EC:" in "".join(molblock):
+        #    moltype_prot.append([molline[10:].split("CHAIN:")[-1].split(";")[0].strip() for molline in molblock if "CHAIN:" in molline and molline[10:].strip().startswith("CHAIN")])
+        for line_n, molline in enumerate(molblock): 
+            if "CHAIN:" in molline and molline[10:].strip().startswith("CHAIN"):
+                molline = molline.strip()
+                currline = copy(line_n)
+                while molline.endswith(","):
+                    molline_add = molblock[currline+1][10:].strip()
+                    molline = molline+molline_add
+                    currline+=1
+                moltype_prot.append(molline[10:].split("CHAIN:")[-1].split(";")[0].strip())
 
     if len(moltype_prot)>0:
         moltype_prot = [x.split(",") for x in np.hstack(moltype_prot)]
