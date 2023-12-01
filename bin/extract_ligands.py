@@ -723,4 +723,4 @@ for pdbname in pdbs:
 
 
 print("\n\nFinished Ligand extraction.")
-sys.exit("\n\nFinished Ligand extraction.")
+sys.stderr.write("\n\nFinished Ligand extraction.")

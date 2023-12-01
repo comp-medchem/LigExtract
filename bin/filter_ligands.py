@@ -441,4 +441,4 @@ save_clean_pockets_list = save_clean_pockets_list[np.in1d(save_clean_pockets_lis
 save_clean_pockets_list.to_csv(f"cleanpockets_{prot_dir.split('/')[-1]}.txt", sep="\t", index=False)
 
 
-sys.exit("\n\nFinished.")
+sys.stderr.write("\n\nFinished.")

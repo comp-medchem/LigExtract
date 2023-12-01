@@ -403,4 +403,4 @@ for l in curr_ligands:
 
 
 pockets_file = f'pockets_{protein_dir.split("/")[-1]}.txt'
-sys.exit(f"\n\nFinished. All ligands and their pockets are listed in {pockets_file}")
+sys.stderr.write(f"\n\nFinished. All ligands and their pockets are listed in {pockets_file}")

@@ -15,7 +15,7 @@ from sklearn.cluster import AgglomerativeClustering
 from scipy.spatial.distance import euclidean
 from copy import copy
 from pathlib import Path
-HOME=Path.home()
+HOME=str(Path.home())
 
 
 parser = argparse.ArgumentParser(description='Final procedure do decide which ligands are the most likely in a given protein, using different criteria that looks into ligand structure and annotation, ligand placement in the pocket, etc.')

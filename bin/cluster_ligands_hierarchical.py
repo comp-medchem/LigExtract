@@ -14,6 +14,7 @@ from itertools import combinations
 from sklearn.cluster import AgglomerativeClustering
 from scipy.spatial.distance import euclidean
 from copy import copy
+from pathlib import Path
 HOME = str(Path.home())
 
 parser = argparse.ArgumentParser(description='Final procedure do decide which ligands are the most likely in a given protein, using different criteria that looks into ligand structure and annotation, ligand placement in the pocket, etc.')
@@ -425,4 +426,4 @@ for p_i, prot in enumerate(prot_lst):
     # Produce one global image where each pocket has a color
     subprocess.run(f"pymol -cq ~/LigExtract/bin/allpockets_figure.py -- {prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs {prot}_pockets_hierarch-clusters.txt", shell=True, capture_output=True)
 
-sys.exit(f"\n\nFinished Clustering pockets")
+sys.stderr.write(f"\n\nFinished Clustering pockets")
