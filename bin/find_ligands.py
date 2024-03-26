@@ -17,8 +17,14 @@ from rdkit import RDLogger
 import gzip
 from pathlib import Path
 import networkx as nx
-HOME=Path.home()
+from pdbecif.mmcif_io import CifFileReader
+#HOME=Path.home()
+HOME = os.path.realpath(__file__)
+HOME = HOME.split("/LigExtract")[0]
 RDLogger.DisableLog('rdApp.*')
+
+sys.path.append(f'{HOME}/LigExtract/bin')
+from ligextract_utils import *
 
 
 parser = argparse.ArgumentParser(description='This does a preliminary ligand clean-up removing the most obvious non ligands. A file with the pockets around each ligand will be produced.')
@@ -40,58 +46,11 @@ if protein_dir[-1]=="/": protein_dir = protein_dir[:-1]
 if ligands_dir[-1]=="/": ligands_dir = ligands_dir[:-1]
 
 
-def groupresidues(residues_lst):
-    res_chain_q = [x[4] for x in residues_lst]
-    allLinks = []
-    for link in links:
-        if link[21] in res_chain_q and link[51] in res_chain_q:
-            l1 = link[17:26]
-            l2 = link[47:56]
-            foundlink = [l1, l2]
-            allLinks.append(foundlink)
-    allLinks_ids=[(x,y) for x,y in allLinks]
-    if len(allLinks_ids)==0:
-        g = [x[-4:].strip() for x in residues_lst]
-        g = pd.DataFrame(zip(g,range(1,len(g)+1)), columns=["resn","group"])
-        g.loc[:,"resn"] = g.resn.values.astype(int)
-        return g
-    G = nx.Graph()
-    G.add_edges_from(allLinks_ids)
-
-    groups = []
-    man_group = 0
-    for r in residues_lst:
-        if r not in G.nodes:
-            groups.append(r[-4:].strip())
-            continue
-        expand=True
-        catch_neigh = [r]
-        while expand == True:
-            new_neigh = np.unique(np.hstack([list(G.neighbors(x)) for x in catch_neigh]))
-            new_neigh = np.setdiff1d(new_neigh,catch_neigh)
-            new_neigh = [x for x in new_neigh if r[:3] in x]
-            if len(new_neigh) > 0:
-                catch_neigh = np.unique(np.hstack([catch_neigh,new_neigh]))
-            else:
-                expand=False
-        catch_neigh = ",".join([x[-4:].strip() for x in catch_neigh])
-        groups.append(catch_neigh)
-    g_n = 0
-    unique_groups = []
-    for g in np.unique(groups):
-        g_n+=1
-        g = g.split(",")
-        unique_groups.append(pd.DataFrame(zip(g, [g_n]*len(g)), columns=["resn","group"]))
-    unique_groups = pd.concat(unique_groups)
-    unique_groups.loc[:,"resn"] = unique_groups.resn.values.astype(int)
-    return unique_groups
-
-
-
 
 print("\n------------------  First Ligand Clean-up (crystallography additives, solvent, etc) & Pocket detection  ------------------\n")
 
 uniprot2pdb = pd.read_csv(uniprot2pdb_file, sep="\t")
+# this mapping has the most updated uniprot
 
 if "pdb" not in uniprot2pdb.columns:
     print("ERROR!  the uniprot2pdb file must have a column called 'pdb'")
@@ -102,6 +61,18 @@ if "uniprot" not in uniprot2pdb.columns:
     sys.exit(123)
 
 uniprot2pdb_secondary = pd.read_csv(f"{protein_dir.split('/')[-1]}_process_uniprot_chains.txt", sep="\t")
+
+# SIFTS pdb chain mapping
+sifts_pdb2uniprot = []
+with gzip.open(f"{home}/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
+    for ln in f: # PDB  CHAIN   SP_PRIMARY
+        ln=ln.decode("utf-8").strip().split(",")
+        if ln[0].upper() in uniprot2pdb.pdb.values:
+            sifts_pdb2uniprot.append(ln[0:3])
+
+sifts_pdb2uniprot = pd.DataFrame(sifts_pdb2uniprot, columns = ["pdbs", "chainName", "uniprot"])
+sifts_pdb2uniprot = sifts_pdb2uniprot[[x.startswith("NOR")==False for x in sifts_pdb2uniprot.uniprot.values]]
+
 
 ## Removing x-ray additives and other solutes
 print("removing x-ray additives and other solutes listed in generic_solute_ligands.txt...")
@@ -168,41 +139,59 @@ for proteinfile in list_proteins:
     
     prot = PandasPdb().read_pdb(f'{protein_dir}/{proteinfile}')
     
-    links = prot.df["OTHERS"].query("record_name == 'LINK'").entry.values
-    links = ['LINK  '+x for x in links]
-    links = [x.strip() for x in links if float(x.split(" ")[-1])<2.15 and " HOH " not in x] # max covalent distance
+    #links = prot.df["OTHERS"].query("record_name == 'LINK'").entry.values
+    #links = ['LINK  '+x for x in links]
+    #links = [x.strip() for x in links if float(x.split(" ")[-1])<2.15 and " HOH " not in x] # max covalent distance
+    ciffile = f"cifs/{pdbcode.lower()}.cif"
+    cifdata = CifFileReader().read(ciffile)
+    if "_struct_conn" in cifdata[pdbcode.upper()]:
+        links = pd.DataFrame.from_dict(cifdata[pdbcode.upper()]["_struct_conn"], orient="index").T
+        #dist = links.pdbx_dist_value.astype(float) < 2.15 # max covalent distance
+        #links = links[dist]
+        links = links.query("ptnr1_label_comp_id != 'HOH'")
+        links = links.query("conn_type_id == 'covale'")
+    else:
+        links = pd.DataFrame([])
     
     prd_ligs = [x.split(";")[0].split("chain ")[1] for x in open(f"{ligands_dir}/{pdbcode}_ligand_extraction.log").readlines() if "associated with PRD ID" in x]
     # Get all uniprot that map to the most recent uniprot ID
+    # some PDBs have no uniprot associated with any of the chains (e.g. 3in9), so they will not be in *process_uniprot_chains.txt
+    # See if they are in SIFTS and only if not, raise error
+    fail1 = False
+    fail2 = False
     if len(uniprot2pdb_secondary.query(f"pdb == '{pdbcode}'"))==0:
-        print(f"{protein_dir.split('/')[-1]}_process_uniprot_chains.txt does not include {pdbcode}. Please re-run process_chains.py")
-        sys.exit(123)
-    uniprotid_alternates = uniprot2pdb_secondary.query(f"pdb == '{pdbcode}' and updated_uniprot == '{uniprotid}'").uniprot_in_pdbfile.values
-    uniprot_refs = prot.df["OTHERS"].query("record_name == 'DBREF'").entry.values
-    uniprot_refs = ['DBREF '+x for x in uniprot_refs]
-    chains_w_Uniprot = np.unique([x[12] for x in uniprot_refs if x[33:41].strip() in uniprotid_alternates])
-    # complete chains from the uniprot to chain list
-    chains_w_Uniprot_alternate = []
-    with gzip.open(f"{HOME}/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
-        for ln in f:
-            ln=ln.decode("utf-8").strip().split(",")
-            if ln[0]==pdbcode.lower() and uniprotid in ln:
-                chains_w_Uniprot_alternate.append(ln[1])
-    chains_w_Uniprot_alternate = np.unique(chains_w_Uniprot_alternate)
+        fail1 = True
+        print(f"{protein_dir.split('/')[-1]}_process_uniprot_chains.txt does not include {pdbcode}\n") #. Please re-run process_chains.py
+    if len(sifts_pdb2uniprot.query(f"pdbs == '{pdbcode.lower()}'"))==0:#SIFTS
+        fail2=True
+    if fail1 and fail2:
+        print(f"SIFTS mapping also does not include any uniprot mapping to {pdbcode} chains. Abort\n\n")
+        sys.exit(f"{pdbcode} has no uniprot mapping, which is not expected (this PDB was retrieved from a uniprot query)")
+    
+    # only allow chains that map to the query uniprotid
+    chains_w_Uniprot1 = uniprot2pdb_secondary.query(f"pdb == '{pdbcode}' and updated_uniprot == '{uniprotid}'").chain.unique()
+    chains_w_Uniprot2 = sifts_pdb2uniprot.query(f"pdbs == '{pdbcode.lower()}' and uniprot == '{uniprotid}'").chainName.unique()
+    chains_w_Uniprot = np.union1d(chains_w_Uniprot1, chains_w_Uniprot2)
+    
+
     # update dict
-    chains_w_Uniprot = np.union1d(chains_w_Uniprot, chains_w_Uniprot_alternate)
     if len(chains_w_Uniprot)> 0: chains_w_Uniprot_lst[pdbcode]=chains_w_Uniprot
     else: chains_w_Uniprot_lst[pdbcode]=[] # to avoid raising the "elementwise comparison failed" warning
     
     allligands = [x for x in os.listdir(ligands_dir) if pdbcode in x and x.endswith(".pdb")]
     
     # locate and remove ions
-    ions = ["HETNAM"+x for x in prot.df["OTHERS"].query("record_name == 'HETNAM'").entry.values]
-    ions = [x[11:14].strip() for x in ions if "ION" in x.split()]
+    cifdata = CifFileReader().read(ciffile)
+    ions = []
+    if "_chem_comp" in cifdata[pdbcode.upper()]:
+        ions = pd.DataFrame.from_dict(cifdata[pdbcode.upper()]["_chem_comp"], orient="index").T
+        ions = ions.query("type == 'non-polymer'")
+        ions = ions[[" ION" in x for x in ions.name.values]].id.values
+    
     for ion in ions:
         for ionfile in glob(f'{ligands_dir}/{pdbcode}_*_lig-{ion}.*'): 
             os.remove(ionfile) 
-            print(f"remove {ion} ions by detecting the word ION in the HETNAM section")
+            print(f"remove {ion} ions by detecting the word ION in the _chem_comp section")
     
     
     # remove any chains that are other proteins
@@ -266,7 +255,7 @@ for proteinfile in list_proteins:
         
         # Detect groups of multi-residue ligands
         if len(res_hetatm)>1:
-            resgroups = groupresidues(res_hetatm)
+            resgroups = groupresidues(res_hetatm, links)
         else:
             #len hetatm is 0,1
             # can either be a 1-res small lig alone or a chain lig
@@ -403,4 +392,4 @@ for l in curr_ligands:
 
 
 pockets_file = f'pockets_{protein_dir.split("/")[-1]}.txt'
-sys.stderr.write(f"\n\nFinished. All ligands and their pockets are listed in {pockets_file}")
+sys.stderr.write(f"\n\nFinished. All ligands and their pockets are listed in {pockets_file}\n\n")

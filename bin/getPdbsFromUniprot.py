@@ -12,7 +12,9 @@ import json
 import argparse
 import urllib
 from pathlib import Path
-home = str(Path.home())
+#home = str(Path.home())
+home = os.path.realpath(__file__)
+home = home.split("/LigExtract")[0]
 uniprot_fun = f'{home}/LigExtract/bin/'
 sys.path.insert(1, uniprot_fun)
 from uniprot_map_api import *

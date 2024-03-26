@@ -30,11 +30,23 @@ EOF
   exit 1
 }
 
+function ProgressBar {
+    let _progress=(${1}*100/${2}*100)/100
+    let _done=(${_progress}*4)/10
+    let _left=40-$_done
+    _fill=$(printf "%${_done}s")
+    _empty=$(printf "%${_left}s")
+    printf "\rProgress : [${_fill// /#}${_empty// /-}] ${_progress}%%"
+
+}
+
+
+
 download() {
   url="$BASE_URL/$1"
   out=$2/$1
-  echo "Downloading $url to $out"
-  curl -s -f $url -o $out || echo "Failed to download $url"
+  #echo "Downloading $1 to $out"
+  curl -s -f $url -o $out || echo "Failed to download $url" >> pdb_download.log
 }
 
 listfile=""
@@ -73,37 +85,25 @@ contents=$(cat $listfile)
 # see https://stackoverflow.com/questions/918886/how-do-i-split-a-string-on-a-delimiter-in-bash#tab-top
 IFS=',' read -ra tokens <<< "$contents"
 
+
+#for number in $(seq ${_start} ${_end})
+#do ProgressBar ${number} ${_end}
+#done
+numpdbs=`echo $contents | tr -cd , | wc -c`
+_start=1
+_end=$numpdbs
+
+> pdb_download.log
+number=0
+
 for token in "${tokens[@]}"
 do
   if [ "$cif" == true ]
   then
+    number=$(($number + 1))
+    ProgressBar ${number} ${_end}
     download ${token}.cif.gz $outdir
   fi
-  if [ "$pdb" == true ]
-  then
-    download ${token}.pdb.gz $outdir
-  fi
-  if [ "$pdb1" == true ]
-  then
-    download ${token}.pdb1.gz $outdir
-  fi
-  if [ "$xml" == true ]
-  then
-    download ${token}.xml.gz $outdir
-  fi
-  if [ "$sf" == true ]
-  then
-    download ${token}-sf.cif.gz $outdir
-  fi
-  if [ "$mr" == true ]
-  then
-    download ${token}.mr.gz $outdir
-  fi
-  if [ "$mrstr" == true ]
-  then
-    download ${token}_mr.str.gz $outdir
-  fi
-
 done
 
 

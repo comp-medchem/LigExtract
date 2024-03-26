@@ -3,7 +3,9 @@ import numpy as np
 import sys
 import linecache
 from pathlib import Path
-home = str(Path.home())
+#home = str(Path.home())
+home = os.path.realpath(__file__)
+home = home.split("/LigExtract")[0]
 
 cif_file = sys.argv[1] # prd-all.cif
 

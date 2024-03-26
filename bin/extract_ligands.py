@@ -31,7 +31,15 @@ import subprocess
 import shlex
 import json
 import requests
-home = str(Path.home())
+import re
+from pdbecif.mmcif_io import CifFileReader
+from glob import glob
+#home = str(Path.home())
+home = os.path.realpath(__file__)
+home = home.split("/LigExtract")[0]
+
+sys.path.append(f'{home}/LigExtract/bin')
+from ligextract_utils import *
 
 parser = argparse.ArgumentParser(description='Search and extract all *possible* ligands in each PDB. These will be submitted to further filtration.')
 parser.add_argument('--pdbPath', type=str, required=True, dest="pdbpath", help='Path to directory containing all PDBs to process')
@@ -48,6 +56,15 @@ if outpath[-1]=="/": outpath = outpath[:-1]
 
 print("\n------------------  Extracting all possible ligands from PDBs  ------------------\n")
 
+# First handle CIFs that are to large (remove now; to include later)
+largecifs = [x.split("-")[0] for x in glob("*-chain-id-mapping.txt")]
+
+for pdb in largecifs:
+    for pdbsplit in glob(f'{pdbpath}/{pdb}*.pdb'):
+        os.remove(pdbsplit)
+    if len(glob(f"cifs/{pdb}.cif"))>0:
+        os.remove(f"cifs/{pdb}.cif")
+
 originpath = f'{os.getcwd()}/{pdbpath}'.replace("/./","/")
 targetpath = f'{os.getcwd()}/{outpath}'.replace("/./","/")
 
@@ -63,7 +80,7 @@ extra_downloads = np.setdiff1d([x.split(".")[0] for x in os.listdir(pdbpath) if 
 pdbs = [x for x in os.listdir(pdbpath) if x.endswith(".pdb")]
 
 if len(missing_downloads)>0 or len(extra_downloads)>0:
-    if len(missing_downloads)>0: sys.stderr.write(f"\nWARNING!!!  There are {len(missing_downloads)} pdbs missing ({' '.join(missing_downloads)}). Please re-run the downloadPdbs.py command\n")
+    if len(missing_downloads)>0: sys.stderr.write(f"\nWARNING!!!  There are {len(missing_downloads)} pdbs missing ({' '.join(missing_downloads)}). Please re-run the mmCIF-to-Pdb conversion block\n")
     if len(extra_downloads)>0: sys.stderr.write(f"\nWARNING!!!  There are {len(extra_downloads)} extra pdbs ({' '.join(extra_downloads)}). Please remove them from the PDBs directory you are passing to -d\n")
     sys.exit(123)
 
@@ -77,103 +94,9 @@ uniprot_pdb = uniprot_pdb.groupby("uniprot_in_pdbfile")["updated_uniprot"].sum()
 uniprot_pdb["updated_uniprot"]=[x.split(",")[:-1] for x in uniprot_pdb.updated_uniprot]
 
 
-def findpeptides(pdbfile):
-    pdb_raw_text = PandasPdb().read_pdb(pdbfile)
-    source_dat = " ".join(pdb_raw_text.df['OTHERS'].query("record_name == 'SOURCE'").entry.values).split("MOL_ID:")
-    source_synth = [x for x in source_dat if "SYNTHESI" in x and "CHEMICAL" in x and "ORGANISM_SCIENTIFIC:" not in x]
-    cmpd_dat = " ".join(pdb_raw_text.df['OTHERS'].query("record_name == 'COMPND'").entry.values).split("MOL_ID:")
-    cmpd_inhib = [x for x in cmpd_dat if "PEPTIDE" in x]
-    covered_id_1 = [x.split(";")[0].strip() for x in source_synth]
-    covered_id_2 = [x.split(";")[0].strip() for x in cmpd_inhib]
-    covered_id = np.intersect1d(covered_id_1, covered_id_2)
-    if len(covered_id)==0: return([])
-    peptide_chains = [x.split(" CHAIN: ")[1].split(";")[0].split(",") for x in cmpd_dat if x.split(";")[0].strip() in covered_id]
-    peptide_chains = [x.strip() for x in np.hstack(peptide_chains)]
-    return(peptide_chains)
-    
-
-def findlink(residues_atom, residues_hetatm):
-    linked_hetatm = []
-    for link in links:
-        for res1 in residues_hetatm:
-            for res2 in residues_atom:
-                if res1 in link and res2 in link:
-                    l = [x for x in link.split(" ") if x!=""]
-                    linked_hetatm.append(int(res1[-4:].strip()))
-                    break
-    return(linked_hetatm)
-
-
-def findAllLinks(residues_lst, restypes):
-    res_chain_q = [x[4] for x in residues_lst]
-    allLinks = []
-    for link in links:
-        if link[21] in res_chain_q and link[51] in res_chain_q:
-            l1 = link[17:26]
-            l2 = link[47:56]
-            foundlink = [l1, l2]
-            allLinks.append(foundlink)
-    allLinks_ids=[(x,y) for x,y in allLinks]
-    if len(allLinks_ids)==0:
-        return allLinks_ids
-    G = nx.Graph()
-    G.add_edges_from(allLinks_ids)
-
-    if restypes == "HETATM" and len(residues_lst)==1: 
-        # means there is no connections to be made as there is only one HETATM residue in this chain
-        return([])
-
-    if restypes == "HETATM" and len(residues_lst)>1:
-        all_connect = [int(x[-4:].strip()) for x in list(G.nodes)]
-        return(all_connect)
-    
-    if restypes == "ATOM" and len(residues_lst)>1: 
-        prot_link = zip(residues_lst[:-1],residues_lst[1:])
-        prot_link_ids=[(x,y) for x,y in prot_link]
-        G.add_edges_from(prot_link_ids)
-    else: prot_link_ids=["0x0"]
-
-    catch_neigh = residues_lst[:]
-    expand=True
-    while expand == True:
-        new_neigh = np.unique(np.hstack([list(G.neighbors(x)) for x in catch_neigh]))
-        new_neigh = np.setdiff1d(new_neigh,catch_neigh)
-        if len(new_neigh) > 0:
-            catch_neigh = np.hstack([catch_neigh,new_neigh])
-        else:
-            expand=False
-
-    catch_neigh = [int(x[-4:].strip()) for x in catch_neigh]
-    return(catch_neigh)
-
-
-# some of these might be residues and others HETATM
-# go back to the link list and get more info so that this list can be passed to both ATOM and HETATM
-
-
-def countMolsAtoms(formula):
-    # takes chemical formula from "FORMUL" strings
-    formula=formula.replace("*","")
-    wheremolcount = formula.find("(")
-    if wheremolcount == -1: molcount = 1
-    elif wheremolcount == 0: molcount = 1
-    else: molcount = int(formula[:wheremolcount])
-    # clean formula
-    formula = formula.split("(")[-1].split(")")[0]
-    # some molecules have empty molformula; avoid excluding them at this stage
-    if formula.strip()=="": return(np.nan,molcount)
-    formula = formula.split(" ")
-    if "+" in formula[-1] or "-" in formula[-1]: formula = formula[:-1]
-    formula = (" ").join(formula)
-    formula = "".join([x for x in formula if x in string.digits or x==" "]).split(" ")
-    formula = [x if len(x)>0 else 1 for x in formula]
-    formula = np.array(formula).astype(float).sum()
-    return(formula, molcount)
-
 
 try : os.listdir(outpath)
 except FileNotFoundError: os.makedirs(outpath)
-pdbs = [x for x in os.listdir(pdbpath) if x.endswith(".pdb")]
 
 
 keep_others = ["HEADER","TITLE","LINK","CONECT", "MASTER","END"]
@@ -183,19 +106,20 @@ if len(pdbs)==0:
     sys.exit(123)
 
 
-subprocess.run("mkdir -p cifs", shell=True)
-pdbs2extr = np.setdiff1d([x.split(".")[0] for x in pdbs], [x.split(".")[0] for x in os.listdir("cifs")])
-if len(pdbs2extr)>0: 
-    bar = Bar('Extracting CIFs... ', max=len(pdbs2extr))
-    for pdbname in pdbs2extr:
-        bar.next()
-        pdbcode = pdbname.split(".")[0]
-        if f'{pdbcode}.cif' not in os.listdir("cifs"):
-            print(f'Download {pdbcode}.cif')
-            sleep(2)
-            subprocess.run(f"wget https://files.rcsb.org/view/{pdbcode.lower()}.cif --quiet -O cifs/{pdbcode}.cif", shell=True)
-    
-    sys.stderr.write("\n")
+#subprocess.run("mkdir -p cifs", shell=True)
+#pdbs2extr = np.setdiff1d([x.split(".")[0] for x in pdbs], [x.split(".")[0] for x in os.listdir("cifs")])
+#if len(pdbs2extr)>0: 
+#    bar = Bar('Extracting CIFs... ', max=len(pdbs2extr))
+#    for pdbname in pdbs2extr:
+#        bar.next()
+#        pdbcode = pdbname.split(".")[0]
+#        if f'{pdbcode}.cif' not in os.listdir("cifs"):
+#            print(f'Download {pdbcode}.cif')
+#            sleep(2)
+#            subprocess.run(f"wget https://files.rcsb.org/view/{pdbcode.lower()}.cif --quiet -O cifs/{pdbcode}.cif", shell=True)
+#    
+#    sys.stderr.write("\n")
+
 
 
 # After all cifs have been downloaded, screen them to grab PRD IDs
@@ -204,18 +128,13 @@ all_prds_chains = []
 for pdb in pdbs:
     bar.next()
     pdbcode = pdb.split(".")[0]
-    ciffile = open(f"cifs/{pdbcode}.cif").readlines()
-    ciffile = "".join(ciffile).split("# \n")
-    ciffile = [x for x in ciffile if "_pdbx_molecule." in x]
-    if len(ciffile)>0:
-        ciffile = ciffile[0].strip().split("\n")
-        if ciffile[0].startswith("loop_"):
-            headers = [x.split(".")[-1].strip() for x in ciffile[1:] if x.startswith("_pdbx_molecule")]
-            body = ciffile[len(headers)+1:]
-            body = pd.DataFrame([shlex.split(x.strip(), posix=False) for x in body], columns=headers)
-            body.loc[:,"pdb"] = pdbcode
-            # translate asym_id to author ID
-            all_prds_chains.append(body) # asym_id = label_asym_id (the new label)
+    ciffile = f"cifs/{pdbcode}.cif"
+    cifdata = CifFileReader().read(ciffile)
+    data = cifdata[pdbcode.upper()]
+    if "_pdbx_molecule" in data:
+        data = pd.DataFrame.from_dict(data["_pdbx_molecule"], orient="index").T
+        data.loc[:,"pdb"] = pdbcode
+        all_prds_chains.append(data)
 
 if len(all_prds_chains)>0:
     all_prds_chains = pd.concat(all_prds_chains)
@@ -226,30 +145,18 @@ else:
 # gather a new-2-old dictionary of chains
 bar = Bar('Building chains dictionary... ', max=len(pdbs))
 pdb_auth_chains_dict = {}
+
 for pdb in pdbs:
     bar.next()
     pdbcode = pdb.split(".")[0]
-    ciffile = open(f"cifs/{pdbcode}.cif").readlines()
-    ciffile = "".join(ciffile).split("# \n")
-    ciffile = [x for x in ciffile if "_atom_site." in x and "'_atom_site." not in x]
-    if len(ciffile)>0:
-        ciffile = ciffile[0].strip().split("\n")
-        if ciffile[0].startswith("loop_"):
-            headers = [x.split(".")[-1].strip() for x in ciffile[1:] if x.startswith("_atom_site")]
-            body = ciffile[len(headers)+1:]
-            line_length = max([len(ln.split()) for ln in body])
-            lines2mergeup = []
-            for i,ln in enumerate(body[:-1]):
-                if len(ln.split())<line_length/2:
-                    lines2mergeup.append(i)
-            for i in lines2mergeup:
-                body[i-1] = body[i-1]+body[i]
-                body[i] = ''
-            # protect spaces inside quotation marks
-            body = pd.DataFrame([shlex.split(ln.strip(), posix=False) for ln in body], columns=headers)
-            pdb_auth_chains = body[["auth_asym_id", "label_asym_id"]].drop_duplicates()
-            pdb_auth_chains_dict[pdbcode] = {newlabel:authlabel for authlabel,newlabel in pdb_auth_chains[["auth_asym_id", "label_asym_id"]].values}
-
+    ciffile = f"cifs/{pdbcode.lower()}.cif"
+    cifdata = CifFileReader().read(ciffile)
+    data = cifdata[pdbcode.upper()]
+     # translate new chain ID (asym_id) to original chain ID (author_asym_id)
+    if "_atom_site" in data:
+        data = pd.DataFrame.from_dict(data["_atom_site"], orient="index").T
+        pdb_auth_chains = data[["auth_asym_id", "label_asym_id"]].drop_duplicates()
+        pdb_auth_chains_dict[pdbcode] = {newlabel:authlabel for authlabel,newlabel in pdb_auth_chains[["auth_asym_id", "label_asym_id"]].values}
 
 # translate PRD's chains (reported as label_asym_id) to auth_asym_id
 all_prds_chains_NEW = []
@@ -288,18 +195,9 @@ for pdbname in pdbs:
         print(f"Unable to find {pdbcode.upper()} in {uniprot2pdb_file}. Make sure this pdb code is in the file, in all capitals.")
         sys.exit(123)
     # remove PDBs where the protein actually is not found within DBREF
-    uniprot_refs = [x for x in pdb if x.startswith('DBREF')]
-    uniprotid_alternates = uniprot2pdb_secondary.query(f"pdb == '{pdbcode.lower()}' and (updated_uniprot == '{uniprotid}' or uniprot_in_pdbfile == '{uniprotid}')").uniprot_in_pdbfile.values
+    uniprotid_alternates = uniprot2pdb_secondary.query(f"pdb == '{pdbcode.lower()}'").uniprot_in_pdbfile.values
 
-    chains_w_Uniprot = np.unique([x[12] for x in uniprot_refs if x[33:41].strip() in uniprotid_alternates])
-    extra_prot_chains = []
-    # extend the mapping beyond what is in the file using the mapping from SIFTS
-    with gzip.open(f"{home}/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
-        for ln in f:
-            ln=ln.decode("utf-8").strip().split(",")
-            if ln[0]==pdbcode.lower():
-                extra_prot_chains.append(ln[1:3])
-    extra_prot_chains = np.unique([c for c,unp in extra_prot_chains]) 
+    chains_w_Uniprot = uniprot2pdb_secondary.query(f"pdb == '{pdbcode}'").chain.unique()
     
     if len(chains_w_Uniprot)==0 and uniprotid not in uniprot2pdb_secondary.updated_uniprot.values:
         # Finally only delete if this pdb is not being used by other Uniprot IDs
@@ -316,93 +214,82 @@ for pdbname in pdbs:
     outfile.write(f"results obtained from PDBs in {originpath}\n")
     outfile.write(f"results stored in {targetpath}\n\n")
     
-    cif = open(f"cifs/{pdbcode.lower()}.cif").read().split("# \n")
-    if "_pdbx_entity_nonpoly." in "".join(cif):
-        block = [x for x in cif if "_pdbx_entity_nonpoly" in x if x.split("\n")[1].startswith("_pdbx_entity_nonpoly")][0].replace(";","").split("\n")[:-1]
-        if block[0]=="loop_":
-            headers = [x.replace("_pdbx_entity_nonpoly.","").strip() for x in block if x.startswith("_pdbx")]
-            body = []
-            for x in block[1:]:
-                if x.startswith("_pdbx") == False:
-                    body.append(shlex.split(x.strip(), posix=False))
-            nonpoly = [x[-1] for x in body if len(x)>0] 
-        else:
-            nonpoly = [x.strip().split()[-1] for x in block if x.startswith("_pdbx_entity_nonpoly.comp_id")]
+    ciffile = f"cifs/{pdbcode.lower()}.cif"
+    cifdata = CifFileReader().read(ciffile)
+    data = cifdata[pdbcode.upper()]
+    if "_pdbx_entity_nonpoly" in data:
+        data = pd.DataFrame.from_dict(data["_pdbx_entity_nonpoly"], orient="index").T
+        nonpoly = list(data.comp_id.values)
     else:
         nonpoly = []
 
-    
-    links = [x.strip() for x in pdb if x.startswith("LINK")]
-    links = [x.strip() for x in links if float(x.split(" ")[-1])<2.1 and " HOH " not in x] # max covalent distance
-    
-    
-    chaintype = [x for x in pdb if x.startswith('DBREF ')]
-    notaprotein = [x[12] for x in chaintype if x[33:41].strip() not in uniprot_pdb.uniprot_in_pdbfile.values] # OK
-    notaprotein = np.setdiff1d(notaprotein,extra_prot_chains)
-    isprotein = [x[12] for x in chaintype if x[33:41].strip() in uniprot_pdb.uniprot_in_pdbfile.values] # chain
-    isprotein = np.union1d(isprotein,extra_prot_chains)
-    
-    # add chains that may not appear to be a protein from DBREF but have E.C. code in the COMPND section
-    moltype = [x for x in pdb if x.startswith('COMPND')]
-    chunks = np.argwhere(["MOL_ID:" in x for x in moltype]).flatten()
-    chunks = list(zip(chunks,list(chunks[1:])+[len(moltype)]))
-    moltype = [moltype[a:b] for a,b in chunks]
-    moltype_prot = []
-    for molblock in moltype:
-        #if "CHAIN:" in "".join(molblock) and "EC:" in "".join(molblock):
-        #    moltype_prot.append([molline[10:].split("CHAIN:")[-1].split(";")[0].strip() for molline in molblock if "CHAIN:" in molline and molline[10:].strip().startswith("CHAIN")])
-        for line_n, molline in enumerate(molblock): 
-            if "CHAIN:" in molline and molline[10:].strip().startswith("CHAIN"):
-                molline = molline.strip()
-                currline = copy(line_n)
-                while molline.endswith(","):
-                    molline_add = molblock[currline+1][10:].strip()
-                    molline = molline+molline_add
-                    currline+=1
-                moltype_prot.append(molline[10:].split("CHAIN:")[-1].split(";")[0].strip())
 
-    if len(moltype_prot)>0:
-        moltype_prot = [x.split(",") for x in np.hstack(moltype_prot)]
-        moltype_prot = np.hstack(moltype_prot)
-        moltype_prot = [x.strip() for x in moltype_prot]
-    isprotein = np.union1d(isprotein,moltype_prot)
-
-    notaprotein = np.setdiff1d(notaprotein,isprotein)
+    if "_struct_conn" in cifdata[pdbcode.upper()]:
+        links = pd.DataFrame.from_dict(cifdata[pdbcode.upper()]["_struct_conn"], orient="index").T
+        #dist = links.pdbx_dist_value.astype(float) < 2.15 # max covalent distance
+        #links = links[dist]
+        links = links.query("ptnr1_label_comp_id != 'HOH'")
+        links = links.query("conn_type_id == 'covale'")
+    else:
+        links = pd.DataFrame([])
     
+    # what chains map to uniprot
+    isprotein = uniprot2pdb_secondary.query(f"pdb == '{pdbcode.lower()}'").chain.unique()
+    if len(isprotein) == 0:
+        # try to populate with chains directly from the SIFTS mapping
+        isprotein = []
+        with gzip.open(f"{home}/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
+            for ln in f: # PDB  CHAIN   SP_PRIMARY
+                ln=ln.decode("utf-8").strip().split(",")
+                if ln[0] in [pdbcode.lower()]:
+                    isprotein.append(ln[1])
+        isprotein = np.unique(isprotein)
+
+    # isprotein cannot be empty
+    if len(isprotein) == 0:
+        sys.stderr.write("Interrupt process: no proteins mapped to PDB [",pdbcode, "] which is unexpected")
+
+    # get all chains
+    cifdata = CifFileReader().read(ciffile)
+    data = cifdata[pdbcode.upper()]
+    data = pd.DataFrame.from_dict(data["_struct_ref_seq"], orient="index").T
+    allchains = data.pdbx_strand_id.values
+    notaprotein = np.setdiff1d(allchains, isprotein)
+
     # add found peptides to the chain lists
-    peptidechains = findpeptides(f"{pdbpath}/{pdbname}")
+    #peptidechains = findpeptides(f"{pdbpath}/{pdbname}")
+    peptidechains = findpeptide(pdbcode).split(",")
+    if peptidechains == [""]: peptidechains = []
+    norine = [x.startswith("NOR") and len(x) == 8 for x in data.pdbx_db_accession.values]
+    peptidechains_norine = data[norine].pdbx_strand_id.values
+    peptidechains = np.union1d(peptidechains, peptidechains_norine)
     print(f"peptide chains for {pdbcode}:", ",".join(peptidechains))
     isprotein = np.setdiff1d(isprotein, peptidechains)
     notaprotein = np.union1d(notaprotein, peptidechains)
     
-    seq = [x for x in pdb if x.startswith('SEQRES')]
+    #seq = [x for x in pdb if x.startswith('SEQRES')]
+    data = cifdata[pdbcode.upper()]
+    chainEntityID_AuthChainName_dict = pd.DataFrame.from_dict(data["_atom_site"], orient="index").T
+    chainEntityID_AuthChainName_dict = chainEntityID_AuthChainName_dict[["label_entity_id","auth_asym_id"]].drop_duplicates()
+    #AuthChainName_chainEntityID_dict = {y:x for x,y in chainEntityID_AuthChainName_dict.values}
+    chainEntityID_AuthChainName_dict = {x:chainEntityID_AuthChainName_dict.query(f"label_entity_id == '{x}'").auth_asym_id.values for x in chainEntityID_AuthChainName_dict.label_entity_id.unique()}
 
-    # gather protein residues
-    protres = []
-
-    for chain in isprotein:
-        r = [x.strip()[19:].split() for x in seq if chain == x[11]]
-        r = np.hstack(r)
-        r = [x for x in r if x!=""]
-        protres.append(r)
-
-    if len(protres)>0: protres = np.hstack(protres)
-
-    # gather ligands 
-    ligands = [x.strip() for x in pdb if x.startswith('HETNAM ')]
-    ligands = list(np.unique([x[11:14].strip() for x in ligands]))
+    data = cifdata[pdbcode.upper()]
+    pdbseqs = []
+    if "_entity_poly_seq" in data:
+        pdbseqs = pd.DataFrame.from_dict(data["_entity_poly_seq"], orient="index").T
+        pdbseqs = pdbseqs[["entity_id","mon_id"]]
+        #pdbseqs = pdbseqs.replace(chainEntityID_AuthChainName_dict)
+    #pd.DataFrame.from_dict(data["_pdbx_nonpoly_scheme"], orient="index").T
+    
+    # gather ligands; # ARG in 4kx9 is a ligand 
     # ligand among the protein sequence (e.g. 4H9M) cannot be considered; warning: a standard residue code might appear in HETNAM
-    formulas = [x for x in pdb if x.startswith('FORMUL ')]
-    modres = [x[12:15] for x in pdb if x.startswith('MODRES ')]
-    modres2 = [x[12:15] for x in pdb if x.startswith('SEQADV ') and "MODIFIED RESIDUE" in x]
-    modres = list(np.unique(np.hstack([modres,modres2])))
-    ligands = np.setdiff1d(ligands,modres)
-    filtered_ligs = []
-    for x in ligands:
-        if x in protres and x not in nonpoly: continue
-        else: filtered_ligs.append(x) # e.g. ARG in 4kx9 which is a ligand 
-            
-    ligands = copy(filtered_ligs)
+    
+    ciffile = f"cifs/{pdbcode.lower()}.cif"
+    cifdata = CifFileReader().read(ciffile)
+    ligands = pd.DataFrame.from_dict(cifdata[pdbcode.upper()]["_pdbx_entity_nonpoly"], orient="index").T #_chem_comp
+    ligands = ligands.comp_id.values
+    ligands = np.setdiff1d(ligands, "HOH")
 
     ###########  EXTRACT LIGAND - METHOD 1  ###########
     # This method extracts ligands that may exist (partly or entirely) among the residues section.
@@ -412,13 +299,11 @@ for pdbname in pdbs:
         ligres=[]
     else:
         ligres = []
-        for chain in notaprotein:
-            r = [x.strip() for x in seq if f' {chain}  ' in x]
-            r = [x[x.find(f' {chain}  ')+8:].split(" ") for x in r]
-            r = np.hstack(r)
-            r = [x for x in r if x!=""]
-            ligres.append(r)
-            
+        for entityID in pdbseqs.entity_id.unique():
+            chains = chainEntityID_AuthChainName_dict[entityID]
+            for chainName in chains:
+                if chainName in notaprotein:
+                    ligres.append(pdbseqs.query(f"entity_id == '{entityID}'").mon_id.unique())
         ligres = np.unique(np.hstack(ligres))
         
         for chain in notaprotein:
@@ -441,59 +326,68 @@ for pdbname in pdbs:
                 # see which res connect from HETATM to ATOM
                 
                 # At the moment this does not cover all exceptions as some cases fail to mention ATOM-HETATM links that exist (e.g. 1de7)
-                all_linked_atms = np.unique(findAllLinks(res_atom, "ATOM") + findAllLinks(res_hetatm,"HETATM"))
+                all_linked_atms = np.unique(findAllLinks(res_atom, "ATOM", links) + findAllLinks(res_hetatm,"HETATM", links))
                 # add additional residues that are in the sequence but not in all_linked_atms
-                chainres = np.hstack([x.strip()[19:].split() for x in seq if chain == x[11]])
-                chainres = [int(x[-4:].strip()) for x in res_hetatm if x[:3] in chainres]
+                #chainres = np.hstack([x.strip()[19:].split() for x in seq if chain == x[11]])
+                #chainres = [int(x[-4:].strip()) for x in res_hetatm if x[:3] in chainres]
+                chainres = [] # placeholder ; do we need to incorporate _pdbx_entity_nonpoly here
                 all_linked_atms = np.hstack([all_linked_atms, chainres])
 
                 
                 lig.df['ATOM'] = lig.df['ATOM'][lig.df['ATOM'].chain_id==chain]
                 lig.df['HETATM'] = lig.df['HETATM'][lig.df['HETATM'].chain_id==chain]
                 lig.df['HETATM'] = lig.df['HETATM'][np.in1d(lig.df['HETATM'].residue_number,all_linked_atms)] # linked_hetatm
-                lig.df['ANISOU'] = lig.df['ANISOU'][lig.df['ANISOU'].chain_id==chain]
-                lig.df["OTHERS"] = lig.df["OTHERS"][np.in1d(lig.df["OTHERS"].record_name, keep_others)]
                 lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM', "OTHERS"], gz=False, append_newline=True)
                 print(f'lig_chain-{chain}')
                 outfile.write(f"rebuilt ligand detected in chain {chain}\n")
 
             if len(res_atom) == 0: # ligand is entirely in HETATM but has multiple residues
                 res_hetatm =["{:>3}".format(a) + "{:>2}".format(b) + "{:>4}".format(c) for a,b,c in res_hetatm]
-                linked_hetatm = findAllLinks(res_hetatm, "HETATM")
+                linked_hetatm = findAllLinks(res_hetatm, "HETATM", links)
                 lig.df['ATOM'] = lig.df['ATOM'][lig.df['ATOM'].chain_id==chain]
                 lig.df['HETATM'] = lig.df['HETATM'][lig.df['HETATM'].chain_id==chain]
                 if len(linked_hetatm)>0:
                     lig.df['HETATM'] = lig.df['HETATM'][np.in1d(lig.df['HETATM'].residue_number,linked_hetatm)]
                 if len(linked_hetatm)==0:
+                    print("[LOG WARN] no linked hetatm residues - bypass")
                     # untie with HET
-                    het = [x.split() for x in pdb if x.startswith('HET ')]
-                    het = [x[1] for x in het if x[2]==chain]
-                    lig.df['HETATM'] = lig.df['HETATM'][np.in1d(lig.df['HETATM'].residue_name,het)]
-                lig.df['ANISOU'] = lig.df['ANISOU'][lig.df['ANISOU'].chain_id==chain]
-                lig.df["OTHERS"] = lig.df["OTHERS"][np.in1d(lig.df["OTHERS"].record_name, keep_others)]
+                    #het = [x.split() for x in pdb if x.startswith('HET ')]
+                    #het = [x[1] for x in het if x[2]==chain]
+                    #lig.df['HETATM'] = lig.df['HETATM'][np.in1d(lig.df['HETATM'].residue_name,het)]
                 lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM', "OTHERS"], gz=False, append_newline=True)
                 print(f'lig_chain-{chain}')
                 outfile.write(f"rebuilt ligand detected in chain {chain}; exclusively found in HETATM records\n")
-
+    
     
     ##########  EXTRACT LIGAND - METHOD 2  ###########
     # This method extracts ligands from the typical section where ligands are found
-    cmpds_all = [cmpd[12:15].strip() for cmpd in formulas]
-    
-    cmpds = [cmpd[12:15].strip() for cmpd in formulas if ( countMolsAtoms(cmpd[19:70].strip())[0]>3 or np.isfinite(countMolsAtoms(cmpd[19:70].strip())[0])==False) and countMolsAtoms(cmpd[19:70].strip())[1]<10]
-    # restore cmpds which are in BIRD
+    #cmpds_all = [cmpd[12:15].strip() for cmpd in formulas]
+    cifdata = CifFileReader().read(ciffile)
+    seqs = pd.DataFrame.from_dict(cifdata[pdbcode.upper()]["_entity_poly"], orient="index").T 
+    res_not_cmpds = [x for x in seqs.pdbx_seq_one_letter_code.values if "(" in x]
+    if len(res_not_cmpds)>0:
+        res_not_cmpds = np.hstack([re.findall(r"\(.*?\)", x) for x in res_not_cmpds])
+        res_not_cmpds = [x[1:-1] for x in res_not_cmpds]
+    else:
+        res_not_cmpds = []
+
     lig_ids_in_bird = pd.read_csv(f"{home}/LigExtract/data/prd_to_pdb_ligIDs.txt", sep="\t").pdblig_ID.values
-    cmpds = np.union1d(cmpds, np.intersect1d(cmpds_all,lig_ids_in_bird))
-    cmpds_removed = np.setdiff1d(cmpds_all,cmpds)
+    cmpds_ok, cmpds_removed = countMolsAtoms(pdbcode)
+    # save cmpds_removes according to BIRD
+    cmpds_removed = np.setdiff1d(cmpds_removed, lig_ids_in_bird)
+
     if len(cmpds_removed)>0: print("The following compounds do not comply wih the inclusion criteria of minimum 3 heavy atoms and maximum of 10 repeated molecules:",cmpds_removed)
-    cmpds = np.setdiff1d(cmpds, modres) # ligres
-    cmpds = np.intersect1d(cmpds, ligands)
+    cmpds = np.union1d(cmpds_ok, ligands)
+
+    cmpds = np.setdiff1d(cmpds, cmpds_removed)
+    cmpds = np.setdiff1d(cmpds, res_not_cmpds)
+
 
     if len(cmpds)>0:
         for cpd in cmpds:
             message = ""
-            if cpd in modres:
-                continue
+            #if cpd in modres:
+            #    continue
             with open(f"{home}/LigExtract/data/all_pdbligs.txt") as f: 
                 for line in f:
                     if line == "id\tcount\n": continue
@@ -505,14 +399,8 @@ for pdbname in pdbs:
                             if pdbcnt>250 : message = f"(!) Found in {pdbcnt} PDBs! Might not be a ligand."
                         else:
                             # calculate real non-polymer count
-                            params = {"query": {
-                                      "type": "terminal","service": "text","parameters": {
-                                      "attribute": "rcsb_nonpolymer_instance_feature_summary.comp_id",
-                                      "operator": "exact_match",
-                                      "value": f"{cpd}"}
-                                      },
-                                     "request_options": {"return_counts": True},"return_type": "entry"}
-                            result = requests.get("https://search.rcsb.org/rcsbsearch/v1/query", {"json": json.dumps(params, separators=(",", ":"))})
+                            params = json.loads(open(f"{home}/LigExtract/bin/pdb_api_counts.q").read().replace("LIGAND", cpd))
+                            result = requests.get("https://search.rcsb.org/rcsbsearch/v2/query", {"json": json.dumps(params, separators=(",", ":"))})
                             res_stat = result.status_code
                             result = result.content.decode("utf-8")
                             if result == "" and res_stat not in [200,204]: #,204
@@ -551,91 +439,53 @@ for pdbname in pdbs:
                 lig = PandasPdb().read_pdb(f'{originpath}/{pdbname}')
                 lig.df["HETATM"] = lig.df["HETATM"].query(f'residue_name=="{cpd}" and chain_id=="{chain}"')
                 lig.df["ATOM"] = lig.df["ATOM"].query(f'residue_name=="NOTHING" and chain_id=="{chain}"')
-                lig.df["ANISOU"] = lig.df["ANISOU"].query(f'residue_name=="NOTHING" and chain_id=="{chain}"')
-                lig.df["OTHERS"] = lig.df["OTHERS"][np.in1d(lig.df["OTHERS"].record_name, keep_others)]
                 lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_chain-{chain}_lig-{cpd}.pdb', records=['ATOM', 'HETATM', "OTHERS"], 
                                 gz=False, append_newline=True)
                 print(f'{pdbname.split(".")[0]}_chain-{chain}_lig-{cpd}')
 
     ########## METHOD 3: collecting oligosacharide chain ligands ##########
-    cif = open(f"cifs/{pdbcode.lower()}.cif").read().split("# \n")
 
-    if "_pdbx_entity_branch.entity_id" in "".join(cif):
-        block = [x for x in cif if "_pdbx_entity_branch." in x and x.split("\n")[1].startswith("_pdbx_entity_branch.")][0].split("\n")[:-1]
-        if block[0]=="loop_":
-            headers = [x.replace("_pdbx_entity_branch.","").strip() for x in block if x.startswith("_pdbx")]
-            body = [x.strip().split() for x in block[1:] if x.startswith("_pdbx") == False]
-            oligo_entities = pd.DataFrame(body, columns=headers)
-            oligo_entities = oligo_entities.query("type == 'oligosaccharide'").entity_id.values
-        else:
-            is_oligo = [x.strip().split()[-1] for x in block if "_pdbx_entity_branch.type" in x][0]
-            if is_oligo == "oligosaccharide":
-                oligo_entities = [x.strip().split()[-1] for x in block if "_pdbx_entity_branch.entity_id" in x]
-            else:
-                oligo_entities = []
-    else:
-        oligo_entities = []
-
-
-    if "_struct_conn.pdbx_role" in "".join(cif):
-        block = [x for x in cif if "_struct_conn." in x and x.split("\n")[1].startswith("_struct_conn.")][0].split("\n")[:-1]
-        if block[0]=="loop_":
-            headers = [x.replace("_struct_conn.","").strip() for x in block if x.startswith("_struct_conn")]
-            body = [x for x in block[1:] if x.startswith("_struct_conn") == False]
-            join_ln = np.argwhere([len(shlex.split(x))<len(headers) for x in body]).flatten()
-            for x in join_ln:
-                # if current line is empty, this is a continuation line: bypass.
-                if len(body[x].split())==0: continue
-                body[x] = body[x]+body[x+1]
-                body[x+1]=""
-            body = [shlex.split(x.strip(), posix=False) for x in body if "Glycosylation" in x]
-            glycosylation_chains = pd.DataFrame(body, columns=headers)
-            glycosylation_chains = glycosylation_chains[["ptnr1_auth_asym_id","ptnr2_auth_asym_id"]] 
-            glycosylation_chains = glycosylation_chains.values.flatten()
+    # is glycosylation group - might be oligo or not
+    glycosylation_chains = np.array([])
+    cifdata = CifFileReader().read(ciffile)
+    data = cifdata[pdbcode.upper()]
+    if "_struct_conn" in data:
+        data = pd.DataFrame.from_dict(data["_struct_conn"], orient="index").T
+        if "pdbx_role" in data.columns:
+            has_sugar = ["osylation" in x for x in data.pdbx_role]
+            #partner chains in the connection
+            glycosylation_chains = data[has_sugar][["ptnr1_auth_asym_id","ptnr2_auth_asym_id"]]
+            glycosylation_chains = np.unique(glycosylation_chains.values.flatten())
+            # remove chains that are the receiving proteins
             glycosylation_chains = np.setdiff1d(glycosylation_chains, isprotein)
-        else:
-            glycosylation_chains = np.array([x.strip().split() for x in block])
-            glycosylation_chains = pd.DataFrame(glycosylation_chains[:,1].reshape(1,-1), columns = [x.replace("_struct_conn.","") for x in glycosylation_chains[:,0]])
-            if "Glycosylation" not in glycosylation_chains.pdbx_role.values[0]:
-                glycosylation_chains = []
-            else:
-                glycosylation_chains = glycosylation_chains[["ptnr1_auth_asym_id","ptnr2_auth_asym_id"]].values.flatten()
-    else:
-        glycosylation_chains = []
 
-    block = [x for x in cif if "_atom_site." in x][0].split("\n")[:-1]
-    headers = [x.replace("_atom_site.","").strip() for x in block if x.startswith("_atom_site.")]
-    body = [x.strip().split() for x in block[1:] if x.startswith("_atom_site.") == False]
-    old_new_chainID = pd.DataFrame(body, columns=headers)
-    new2old_chainID = old_new_chainID[["label_asym_id","auth_asym_id"]].drop_duplicates()
-    new2old_chainID = {x:y for x,y in new2old_chainID.values}
-    
-    if "_pdbx_branch_scheme." in "".join(cif):
-        block = [x for x in cif if "_pdbx_branch_scheme." in x and x.split("\n")[1].startswith("_pdbx_branch_scheme.")][0].split("\n")[:-1]
-        if block[0]=="loop_":
-            headers = [x.replace("_pdbx_branch_scheme.","").strip() for x in block if x.startswith("_pdbx")]
-            body = [shlex.split(x.strip(), posix=False) for x in block[1:] if x.startswith("_pdbx") == False]
-            oligo_entities_chains = pd.DataFrame(body, columns=headers)
-            oligo_entities_chains = oligo_entities_chains[np.in1d(oligo_entities_chains.entity_id, oligo_entities)]
-        else:
-            oligo_entities_chains = np.array([x.strip().split() for x in block])
-            oligo_entities_chains = pd.DataFrame(oligo_entities_chains[:,1].reshape(1,-1), columns = [x.replace("_pdbx_branch_scheme.","") for x in oligo_entities_chains[:,0]])
+    # is oligo ligand
+    oligo_entities = np.array([])
+    cifdata = CifFileReader().read(ciffile)
+    data = cifdata[pdbcode.upper()]
+    if "_pdbx_entity_branch" in data:
+        oligo_entities = pd.DataFrame.from_dict(data["_pdbx_entity_branch"], orient="index").T
+        oligo_entities = oligo_entities.query("type == 'oligosaccharide'").entity_id.values
+
+    new2old_chainID = pdb_auth_chains_dict[pdbcode.lower()]
+
+    oligo_entities_chains = np.array([])
+    if "_pdbx_branch_scheme" in data:
+        oligo_entities_chains = pd.DataFrame.from_dict(data["_pdbx_branch_scheme"], orient="index").T
         oligo_entities_chains = [new2old_chainID[x] for x in oligo_entities_chains.asym_id.values]
-    else:
-        oligo_entities_chains = []
-    
-    
-    if len(oligo_entities_chains)>0: non_glycosylation_oligos_chains = np.setdiff1d(oligo_entities_chains, glycosylation_chains)
-    else: non_glycosylation_oligos_chains = []
+        oligo_entities_chains = np.unique(oligo_entities_chains)
+        
+    if len(oligo_entities_chains)>0: 
+        non_glycosylation_oligos_chains = np.setdiff1d(oligo_entities_chains, glycosylation_chains)
+    else: 
+        non_glycosylation_oligos_chains = np.array([])
 
     for chain in non_glycosylation_oligos_chains:
         print(f'lig_chain-{chain} (oligosaccharide)')
         lig = PandasPdb().read_pdb(f'{originpath}/{pdbname}')
         lig.df["HETATM"] = lig.df["HETATM"].query(f'chain_id=="{chain}"')
         lig.df["ATOM"] = lig.df["ATOM"].query(f'chain_id=="{chain}"')
-        lig.df["ANISOU"] = lig.df["ANISOU"].query(f'chain_id=="{chain}"')
-        lig.df["OTHERS"] = lig.df["OTHERS"][np.in1d(lig.df["OTHERS"].record_name, keep_others)]
-        lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM', "OTHERS"], 
+        lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM'], 
                         gz=False, append_newline=True)
         print(f'{pdbname.split(".")[0]}_lig_chain-{chain}')
         # ADD TO INDIVIDUAL LOG
@@ -643,56 +493,51 @@ for pdbname in pdbs:
 
     #############  EXTRACT LIGAND - METHOD 4  #############
     # Directly extract PRD from CIF
-    if "_pdbx_molecule.prd_id" in "".join(cif):
-        block = [x for x in cif if "_pdbx_molecule." in x and x.split("\n")[1].startswith("_pdbx_molecule.")][0].split("\n")[:-1]
-        if block[0]=="loop_":
-            headers = [x.replace("_pdbx_molecule.","").strip() for x in block if x.startswith("_pdbx")]
-            body = [x.strip().split() for x in block[1:] if x.startswith("_pdbx") == False]
-            prd_chains = pd.DataFrame(body, columns=headers)
-        else:
-            prd_chains = np.array([x.strip().split() for x in block])
-            
-            prd_chains = pd.DataFrame(prd_chains[:,1].reshape(1,-1), columns = [x.replace("_pdbx_molecule.","") for x in prd_chains[:,0]])
+    data = cifdata[pdbcode.upper()]
+    prd_chains = []
+    if "_pdbx_molecule" in data:
+        prd_chains = pd.DataFrame.from_dict(data["_pdbx_molecule"], orient="index").T
         prd_chains = prd_chains.asym_id.values
-
-        # translate new chain ID (asym_id) to original chain ID (author_asym_id)
-        block = [x for x in cif if "_atom_site." in x][0].split("\n")[:-1]
-        headers = [x.replace("_atom_site.","").strip() for x in block if x.startswith("_atom_site.")]
-        body = [x.strip().split() for x in block[1:] if x.startswith("_atom_site.") == False]
-        old_new_chainID = pd.DataFrame(body, columns=headers)
-        new2old_chainID = old_new_chainID[["label_asym_id","auth_asym_id"]].drop_duplicates()
-        new2old_chainID = {x:y for x,y in new2old_chainID.values}
-
-        # apply translation of new-2-old chain IDs
+        new2old_chainID = pdb_auth_chains_dict[pdbcode.lower()]
         prd_chains = [new2old_chainID[x] for x in prd_chains]
 
-    else:
-        prd_chains = []
-
-    # Check if there are PRDs within a protein chain and not no its own chain
-    prd_chains = np.setdiff1d(prd_chains, isprotein)
+    # Check if there are PRDs within a protein chain and not on its own chain - this is not correct
+    # A PRD ID should automatically be associated with a ligand
+    #prd_chains = np.setdiff1d(prd_chains, isprotein)
     
     for chain in prd_chains:
-        print(f'lig_chain-{chain} (oligosaccharide found from BIRD)')
+        print(f'lig_chain-{chain} (oligosaccharide/peptide found from BIRD)')
         lig = PandasPdb().read_pdb(f'{originpath}/{pdbname}')
         lig.df["HETATM"] = lig.df["HETATM"].query(f'chain_id=="{chain}"')
         lig.df["ATOM"] = lig.df["ATOM"].query(f'chain_id=="{chain}"')
-        lig.df["ANISOU"] = lig.df["ANISOU"].query(f'chain_id=="{chain}"')
-        lig.df["OTHERS"] = lig.df["OTHERS"][np.in1d(lig.df["OTHERS"].record_name, keep_others)]
-        lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM', "OTHERS"], 
+        lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM'], 
                         gz=False, append_newline=True)
 
     # extract PRD from sequence matching
 
     prd_seq_list = [ln.strip().split("\t") for ln in open(f"{home}/LigExtract/data/prd_cmpds_seq_full_experim.txt").readlines()]
-    pdbseqs = [ln.strip() for ln in pdb if ln.startswith("SEQRES ")]
-    if len(pdbseqs) > 0:
-        lig_seq_all = [[seq[0:12][-1]," ".join(seq[12:].split()[1:])+" "] for seq in pdbseqs]
-        lig_seq_all = pd.DataFrame(lig_seq_all)
-        lig_seq_all = lig_seq_all.groupby(0)[1].sum()
-        lig_seq_all = [[x,y.strip()] for x,y in lig_seq_all.reset_index().values]
-    if len(pdbseqs) == 0:
-        lig_seq_all = [[np.nan,np.nan]]
+
+    chainEntityID_AuthChainName_dict = pd.DataFrame.from_dict(data["_atom_site"], orient="index").T
+    chainEntityID_AuthChainName_dict = chainEntityID_AuthChainName_dict[["label_entity_id","auth_asym_id"]].drop_duplicates()
+    chainEntityID_AuthChainName_dict = {x:y for x,y in chainEntityID_AuthChainName_dict.values}
+
+    data = cifdata[pdbcode.upper()]
+    pdbseqs = []
+    if "_entity_poly_seq" in data:
+        pdbseqs = pd.DataFrame.from_dict(data["_entity_poly_seq"], orient="index").T
+        pdbseqs = pdbseqs[["entity_id","mon_id"]]
+        pdbseqs = pdbseqs.replace(chainEntityID_AuthChainName_dict)
+
+    lig_seq_all = []
+    # only current proteins are eligible for this. All other chains are already classed as non-proteins
+    for protchainName in isprotein:
+        ligseq = pdbseqs.query(f"entity_id == '{protchainName}'").mon_id.values
+        if len(ligseq)> 0:
+            ligseq = " ".join(ligseq) 
+            lig_seq_all.append([protchainName, ligseq])
+            #lig_seq_all = np.array(lig_seq_all)
+    if len(lig_seq_all) == 0:
+        lig_seq_all = np.array([[np.nan,np.nan]])
 
     found_match = np.intersect1d([a[1] for a in lig_seq_all],[x[1] for x in prd_seq_list])
     if len(found_match) == 0:
@@ -712,10 +557,8 @@ for pdbname in pdbs:
             res2keep = res_atoms[res_atoms > 1].reset_index().residue_number
             lig.df["HETATM"] = lig.df["HETATM"][np.in1d(lig.df["HETATM"].residue_number,res2keep)]
 
-            lig.df["ANISOU"] = lig.df["ANISOU"].query(f'chain_id=="{chain}"')
-            lig.df["OTHERS"] = lig.df["OTHERS"][np.in1d(lig.df["OTHERS"].record_name, keep_others)]
             if f'{pdbname.split(".")[0]}_lig_chain-{chain}.pdb' not in os.listdir(outpath):
-                lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM', "OTHERS"], gz=False, append_newline=True)
+                lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM'], gz=False, append_newline=True)
                 print(f'lig_chain-{chain}')
             else:
                 print(f'lig_chain-{chain} found again')
@@ -723,4 +566,4 @@ for pdbname in pdbs:
 
 
 print("\n\nFinished Ligand extraction.")
-sys.stderr.write("\n\nFinished Ligand extraction.")
+sys.stderr.write("\n\nFinished Ligand extraction.\n\n")

@@ -8,7 +8,13 @@ import argparse
 import pandas as pd
 import gzip
 from pathlib import Path
-home = str(Path.home())
+from glob import glob
+from pdbecif.mmcif_io import CifFileReader
+#home = str(Path.home())
+home = os.path.realpath(__file__)
+home = home.split("/LigExtract")[0]
+sys.path.append(f'{home}/LigExtract/bin')
+from uniprot_map_api import *
 
 parser = argparse.ArgumentParser(description='Process all PDBs to annotate all chains with a possible protein identifier.')
 parser.add_argument('--pdbspath', type=str, required=True, dest="pdbpath", help='Path to directory containing all PDBs to process')
@@ -19,157 +25,110 @@ pdbpath = args.pdbpath
 pdbs_redo = args.pdbs_redo
 if pdbpath[-1]=="/": pdbpath = pdbpath[:-1]
 
+# 1ai8 has a chain with P28501 in the CIF file, which is not the primary uniprot P01050
+# pdb_chain_uniprot.csv.gz provides the updated primary uniprot
 
 print("\n------------------  Processing PDBs to gather chain information  ------------------\n")
 
-pdbs_lst = [x for x in os.listdir(pdbpath) if x.endswith(".pdb")]
+pdbs = [x for x in os.listdir(pdbpath) if x.endswith(".pdb")]
 
-catch_html_err = open(f"{pdbpath.split('/')[-1]}_process_uniprot_chains.err","a")
-
-save_uniprot = open(f"{pdbpath.split('/')[-1]}_process_uniprot_chains.txt","a")
-
-if "None" in pdbs_redo:
-    save_uniprot.write("pdb\tuniprot_in_pdbfile\tupdated_uniprot\n")
-elif len(pdbs_redo)>0 and pdbs_redo[0]!="None":
-    pdbs_lst = pdbs_redo[:] #prevent aliasing
-else:
-    sys.exit("uncaught scenario. This appears to be an empty list provided to --pdbsToRedo")
-
-
-# if mapping from old to new uniprot IDs
-bar = Bar('Collecting all uniprot IDs in PDB chains...', max=len(pdbs_lst))
-
+# old2new
 testprotein_lst = []
-for pdbname in pdbs_lst: 
-    bar.next()
-    pdb = open(f"{pdbpath}/{pdbname}").readlines()
-    if len(pdb) == 0:
-        catch_html_err.write(f"{pdbname}: PDB has zero lines. Please verify the file is valid.\n")
-        continue
-    chaintype = [x for x in pdb if x.startswith('DBREF ')]
-    testprotein = np.unique([x[33:41].strip() for x in chaintype if x[26:32].strip()=="UNP"])
-    testprotein_lst.append(testprotein)
-
-sys.stderr.write("\n")
-
-testprotein_lst = np.unique(np.hstack(testprotein_lst))
-chunks_idx = list(range(0,len(testprotein_lst),5000))
-chunks_idx = list(zip(chunks_idx,chunks_idx[1:]+[len(testprotein_lst)]))
-print(f'{len(testprotein_lst)} proteins found in PDB chains. Uniprot mapping will be done in {len(chunks_idx)} chunk(s)...')
-
-old2new=[]
-for chunk_i,chunk_f in chunks_idx:
-    retries = 0
-    success = False
-    chunk = testprotein_lst[chunk_i:chunk_f]
-    params = {'from': 'ACC+ID', 'to': 'ACC', 'format': 'tab', 'query': f'{" ".join(chunk)}'}
-    data = parse.urlencode(params).encode('utf-8')
-    while success == False and retries < 3:
-        try:
-            sleep(6)
-            req = request.Request('https://www.uniprot.org/uploadlists/', data)
-            r = request.urlopen(req) # Doing this in case old Uniprot IDs are being used
-            success = True
-        except urllib.error.HTTPError as err:
-            # retry
-            sleep(10)
-            retries+=1
-    if success == False:
-        catch_html_err.write(f"{pdbname}: Request to Uniprot failed after {retries} retries! PDB {pdbname} will be bypassed.\n")
-        continue
-    try:
-        r = r.read().decode("utf-8").split("\n")[1:-1]
-    except ConnectionResetError:
-        catch_html_err.write(f"{pdbname}: Request to Uniprot failed after {retries} retries! PDB {pdbname} will be bypassed.\n")
-        continue
-    if len(r)>0:
-        r = [x.strip().split("\t") for x in r]
-        for q,retrieved_unip in r:
-            old2new.append([q,retrieved_unip])
-
-
-unip_dict = {} # old:new
-old2new = pd.DataFrame(old2new, columns=["old","new"]).drop_duplicates()
-for old in old2new["old"].values:
-    new = ",".join(old2new.query(f"old=='{old}'").new.values)
-    unip_dict[old]=new
-
-
-bar = Bar('Processing...', max=len(pdbs_lst))
-
-for pdbname in pdbs_lst: 
-    bar.next()
-    pdb = open(f"{pdbpath}/{pdbname}").readlines()
-    if len(pdb) == 0:
-        catch_html_err.write(f"{pdbname}: PDB has zero lines. Please verify the file is valid.\n")
-        continue
-
-    pdbcode=pdbname.split(".")[0]
-    chaintype = [x for x in pdb if x.startswith('DBREF ')]
-    testprotein_chain = pd.DataFrame([[x[12].strip(),x[33:41].strip()] for x in chaintype if x[26:32].strip()=="UNP"])
-    if len(testprotein_chain)>0:
-        testprotein_chain = testprotein_chain.groupby([0])[1].agg(lambda x: ','.join(x))
-
-    chain2uniprot = {}
-    with gzip.open(f"{home}/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
-        for ln in f: # PDB  CHAIN   SP_PRIMARY
-            ln=ln.decode("utf-8").strip().split(",")
-            if ln[0]==pdbcode.lower():
-                if ln[1] in chain2uniprot.keys():
-                    chain2uniprot = {}
-                    # return an empty dict because of N-to-N mapping of chains to uniprot (it is already found)
-                    break
-                chain2uniprot[ln[1]]=ln[2]
-
-    premapping_old_new = []
-    if len(testprotein_chain) > 0:
-        for c in testprotein_chain.reset_index()[0].unique():
-            uniprots = testprotein_chain.loc[c].split(",")
-            if len(uniprots)>1:
-                # ambiguous N-to-N mapping
-                continue
-            if c in chain2uniprot.keys():
-                premapping_old_new.append([uniprots[0], chain2uniprot[c]])
-
-    allchains = pd.DataFrame([x[12].strip() for x in chaintype])
-    for c in np.unique(allchains):
-        if c in chain2uniprot.keys():
-            premapping_old_new.append([chain2uniprot[c], chain2uniprot[c]])
-
-    if len(premapping_old_new)>0:
-        premapping_old_new = list(pd.DataFrame(premapping_old_new).drop_duplicates().values)
-        premapping_old_new = ["\t".join(x) for x in premapping_old_new]
-    
-    if len(premapping_old_new)>0:
-        for a in premapping_old_new: save_uniprot.write(pdbcode+"\t"+a+"\n")
-    
-    testprotein = np.unique([x[33:41].strip() for x in chaintype if x[26:32].strip()=="UNP"])
-
-    for q in testprotein:
-        if q in unip_dict.keys():
-            new_unip=unip_dict[q]
-        else:
-            continue
-        save_uniprot.write(f"{pdbname.split('.')[0]}\t{q}\t{retrieved_unip}\n")
-
-save_uniprot.close()
-
-sys.stderr.write("\n")
-# check any missing proteins
-
-save_uniprot = pd.read_csv(f"{pdbpath.split('/')[-1]}_process_uniprot_chains.txt", sep="\t")
-bar = Bar('Checking mappings...', max=len(pdbs_lst))
-for pdbname in pdbs_lst: 
-    bar.next()
+for pdbname in pdbs: 
     pdbcode = pdbname.split(".")[0]
-    pdb = open(f"{pdbpath}/{pdbname}").readlines()
-    if len(pdb) == 0:
-        catch_html_err.write(f"{pdbname}: PDB has zero lines. Please verify the file is valid.\n")
-        continue
-    if pdbcode not in save_uniprot.pdb.values:
-        outfile = open(f"{pdbpath.split('/')[-1]}_process_uniprot_chains.txt", "a")
-        outfile.write(f"{pdbcode}\tno_uniprot\tno_uniprot\n")
-        outfile.close()
+    ciffile = f"cifs/{pdbcode}.cif"
+    if glob(ciffile) == 0:
+        print("file does not exit:", ciffile)
+    data = CifFileReader().read(ciffile)
+    data = data[pdbcode.upper()]
+    if "_struct_ref_seq" in data:
+        testprotein = pd.DataFrame.from_dict(data["_struct_ref_seq"], orient="index").T
+        testprotein = testprotein[["pdbx_PDB_id_code", "pdbx_db_accession", "pdbx_strand_id"]]
+        testprotein_lst.append(testprotein)
+
+testprotein_lst = pd.concat(testprotein_lst)
+testprotein_lst = testprotein_lst[testprotein_lst.pdbx_PDB_id_code != testprotein_lst.pdbx_db_accession]
+l = testprotein_lst.pdbx_PDB_id_code.str.lower()
+testprotein_lst.loc[:,"pdbx_PDB_id_code"] = l
+
+new_uniprots = []
+list_pdbs = [pdbname.split(".")[0].lower() for pdbname in pdbs]
+with gzip.open(f"{home}/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
+    for ln in f: # PDB  CHAIN   SP_PRIMARY
+        ln=ln.decode("utf-8").strip().split(",")
+        if ln[0] in list_pdbs:
+            new_uniprots.append(ln[0:3])
+
+new_uniprots = pd.DataFrame(new_uniprots, columns = ["pdbs", "chainName", "uniprot"])
+new_uniprots = new_uniprots[[x.startswith("NOR")==False for x in new_uniprots.uniprot.values]]
 
 
-print("\n\nFinished.")
+# In some instances the pdb has no Uniprot chains annotated - 5fv8
+old2new_lst = []
+chains2solve = []
+for pdb, ch in testprotein_lst[["pdbx_PDB_id_code", "pdbx_strand_id"]].drop_duplicates().values:
+    #if unip.startswith("NOR"): continue
+    res = new_uniprots.query(f"pdbs == '{pdb}' and chainName == '{ch}'").uniprot.values
+    #res = [x for x in res if x.startswith("NOR")==False]
+    q = testprotein_lst.query(f"pdbx_PDB_id_code == '{pdb}' and pdbx_strand_id == '{ch}'").pdbx_db_accession.values
+    if len(res)>1 and len(q) == len(res):
+        #print("Warning N-to-N mapping", pdb, ch, res)
+        if np.in1d(q,res).all(): 
+            old2new = pd.DataFrame([res,q]).T
+            #print(old2new)
+        else:
+            for q_i in q: chains2solve.append([pdb,ch, q_i])
+            sys.exit(pdb)
+    #new_uniprots.query(f"pdbs == '{pdb}' and chainName =='{ch}'").index
+    #elif len(q) == 0:# No uniprots to solve
+    elif len(q) == len(res) and len(q) == 1:
+        #OK
+        old2new = pd.DataFrame([res,q]).T
+    # there are cases where one of the chains is not shown in pdb_chain_uniprot.csv.gz
+    # looks like it might be when the chain is a peptide (2f1y)
+    elif len(q) > len(res) and np.in1d(res, q).all():
+        # some chains were dropped
+        old2new = pd.DataFrame([res,res]).T
+    elif len(q) > len(res) and np.in1d(res, q).all() == False:
+        # some chains dropped and some chains are not directly mapped in SIFTS
+        # This might be risky to assign chains to the list; just use chains in SIFTS
+        old2new = pd.DataFrame([res,res]).T
+    else:
+        print(f"WARNING: chain mapping between SIFTS and the CIF file is strange in {pdb}, please inspect and add manually to *_process_uniprot_chains.txt if needed")
+        old2new = pd.DataFrame(["",""]).T
+    old2new.loc[:,"pdb"] = pdb
+    old2new.loc[:,"chain"] = ch
+    old2new_lst.append(old2new)
+
+
+old2new_lst = pd.concat(old2new_lst)
+old2new_lst.columns = ["updated_uniprot", "uniprot_in_pdbfile", "pdb", "chain"]
+old2new_lst = old2new_lst.drop_duplicates()
+old2new_lst = old2new_lst[[ "pdb", "chain", "uniprot_in_pdbfile", "updated_uniprot"]]
+old2new_lst = old2new_lst.query("uniprot_in_pdbfile != ''")
+
+if len(chains2solve)>0:
+    
+    uniprots2solve = np.unique([x[-1] for x in chains2solve])
+    job_id = submit_id_mapping(
+        from_db="UniProtKB_AC-ID", to_db="UniProtKB", ids=list(uniprots2solve)
+    )
+    if check_id_mapping_results_ready(job_id):
+        link = get_id_mapping_results_link(job_id)
+        results = get_id_mapping_results_search(link)
+
+    results = {x["from"]:x["to"]["primaryAccession"] for x in results["results"]}
+
+    #chains2solve.append([pdb,ch, q_i])
+    old2new_lst2 = []
+    for pdb, ch, uniprot in chains2solve:
+        new_unp = results[uniprot]
+        old2new_lst2.append([pdb, ch, uniprot, new_unp])
+    old2new_lst2 = pd.DataFrame(old2new_lst2, columns = [ "pdb", "chain", "uniprot_in_pdbfile", "updated_uniprot"])
+    old2new_lst = pd.concat([old2new_lst, old2new_lst2])
+
+
+old2new_lst.to_csv(f"{pdbpath.split('/')[-1]}_process_uniprot_chains.txt", sep="\t", index=False)
+
+
+print("\n\nFinished.\n\n")
