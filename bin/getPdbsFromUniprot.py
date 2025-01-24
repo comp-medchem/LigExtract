@@ -12,6 +12,7 @@ import json
 import argparse
 import urllib
 from pathlib import Path
+import gzip
 #home = str(Path.home())
 home = os.path.realpath(__file__)
 home = home.split("/LigExtract")[0]
@@ -37,7 +38,7 @@ resolution_lim = args.resolution_lim
 print("\n------------------  Collecting PDBs from Uniprot IDs provided  ------------------\n")
 
 
-
+# Uniprot mapping no longer retrieves anything (excludes 5-letter codes in ligands)
 def fastuniprot2pdb(uniprotLstFile, allpdbsTabl, resolution_limit):
     for ntry in range(5):
         try:
@@ -61,6 +62,28 @@ def fastuniprot2pdb(uniprotLstFile, allpdbsTabl, resolution_limit):
     print(f"{len(response)} PDBs under the set resolution")
     response = [list(x) for x in response.values]
     return(response)
+
+# This is the function to use now
+def getuniprot2pdb(uniprotLstFile, allpdbsTabl, resolution_limit):
+    response = []
+    line_cnt= 0
+    #['PDB', 'CHAIN', 'SP_PRIMARY', 'RES_BEG', 'RES_END', 'PDB_BEG', 'PDB_END', 'SP_BEG', 'SP_END']
+    with gzip.open(f"{home}/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
+        for ln in f: # PDB  CHAIN   SP_PRIMARY
+            line_cnt+=1
+            ln=ln.decode("utf-8").strip().split(",")
+            if line_cnt==2 and ln[2]!= 'SP_PRIMARY':
+                sys.exit("file not structured as originally expected")
+            if line_cnt<2: continue
+            if ln[2] in uniprot_lst:
+                response.append([ln[2], ln[0].upper()])
+    response = pd.DataFrame(response, columns=["From", "To"])
+    print(f"{len(response)} retrieved PDBs")
+    response = response[np.isin(response.To, allpdbsTabl.query(f"RESOLUTION < {resolution_limit}").pdb)]
+    print(f"{len(response)} PDBs under the set resolution")
+    response = [list(x) for x in response.values]
+    return(response)
+
 
 
 ############ Map Uniprot to PDB ###########
@@ -91,7 +114,7 @@ print(f'There are {len(uniprot_lst)} unique Uniprot IDs that will be processed.\
 
 bar = Bar('Fetching PDB codes from Uniprot IDs... ', max=len(uniprot_lst))
 
-uniprot_pdb_dict = fastuniprot2pdb(uniprot_lst, all_pdbs, resolution_lim)
+uniprot_pdb_dict = getuniprot2pdb(uniprot_lst, all_pdbs, resolution_lim)
 
 uniprot_pdb_dict = pd.DataFrame(uniprot_pdb_dict, columns = ["uniprot","pdb"])
 missing = np.setdiff1d(uniprot_pdb_dict.pdb.values, all_pdbs.pdb.values)
