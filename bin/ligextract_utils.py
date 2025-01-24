@@ -55,7 +55,7 @@ def findpeptide(pdbcode):
             if len(synconst) > 0: 
                 peptides.append([resolve_chain, ",".join(chain_name)])
                 continue
-        if np.in1d(chain_name,list(chain2unip.keys())).all() == False:
+        if np.isin(chain_name,list(chain2unip.keys())).all() == False:
             peptides.append([resolve_chain, ",".join(chain_name)])
             continue
         uniprot = chain2unip[chain_name[0]]
@@ -118,7 +118,7 @@ def findAllLinks(residues_lst, restypes, links_table):
             return([])
         foundlink1 = [" ".join(x) for x in foundlink[['ptnr1_auth_comp_id', 'ptnr1_auth_asym_id', 'ptnr1_auth_seq_id']].values]
         foundlink2 = [" ".join(x) for x in foundlink[['ptnr2_auth_comp_id', 'ptnr2_auth_asym_id', 'ptnr2_auth_seq_id']].values]
-        foundlink = np.vstack(zip(foundlink1, foundlink2))
+        foundlink = np.vstack(list(zip(foundlink1, foundlink2)))
         allLinks.append(list(foundlink))
     allLinks_ids = np.vstack(allLinks)
     if len(allLinks_ids)==0:

@@ -203,7 +203,7 @@ for pdbname in pdbs:
         # Finally only delete if this pdb is not being used by other Uniprot IDs
         other_uniprots = uniprot2pdb_secondary.query(f"pdb == '{pdbcode.lower()}'").updated_uniprot.values
         other_uniprots = np.setdiff1d(other_uniprots, uniprotid)
-        if np.in1d(uniprot2pdb.uniprot.unique(), other_uniprots).any() == False:
+        if np.isin(uniprot2pdb.uniprot.unique(), other_uniprots).any() == False:
             print(f"{pdbcode} does not have any chain for ANY of the desired uniprotIDs in the full collection of targets! REMOVED protein")
         os.remove(f'{pdbpath}/{pdbname}')
         continue
@@ -315,7 +315,7 @@ for pdbname in pdbs:
             res_atoms = lig.df["HETATM"].groupby(["residue_name","residue_number"])["atom_number"].nunique()
             res2keep = res_atoms[res_atoms >= 1].reset_index().residue_number # some residues are just the carbon
             
-            lig.df["HETATM"] = lig.df["HETATM"][np.in1d(lig.df["HETATM"].residue_number,res2keep)]
+            lig.df["HETATM"] = lig.df["HETATM"][np.isin(lig.df["HETATM"].residue_number,res2keep)]
 
             res_atom = lig.df['ATOM'][["residue_name","chain_id","residue_number"]].drop_duplicates().values
             res_hetatm = lig.df['HETATM'][["residue_name","chain_id","residue_number"]].drop_duplicates().values
@@ -336,7 +336,7 @@ for pdbname in pdbs:
                 
                 lig.df['ATOM'] = lig.df['ATOM'][lig.df['ATOM'].chain_id==chain]
                 lig.df['HETATM'] = lig.df['HETATM'][lig.df['HETATM'].chain_id==chain]
-                lig.df['HETATM'] = lig.df['HETATM'][np.in1d(lig.df['HETATM'].residue_number,all_linked_atms)] # linked_hetatm
+                lig.df['HETATM'] = lig.df['HETATM'][np.isin(lig.df['HETATM'].residue_number,all_linked_atms)] # linked_hetatm
                 lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM', "OTHERS"], gz=False, append_newline=True)
                 print(f'lig_chain-{chain}')
                 outfile.write(f"rebuilt ligand detected in chain {chain}\n")
@@ -347,13 +347,13 @@ for pdbname in pdbs:
                 lig.df['ATOM'] = lig.df['ATOM'][lig.df['ATOM'].chain_id==chain]
                 lig.df['HETATM'] = lig.df['HETATM'][lig.df['HETATM'].chain_id==chain]
                 if len(linked_hetatm)>0:
-                    lig.df['HETATM'] = lig.df['HETATM'][np.in1d(lig.df['HETATM'].residue_number,linked_hetatm)]
+                    lig.df['HETATM'] = lig.df['HETATM'][np.isin(lig.df['HETATM'].residue_number,linked_hetatm)]
                 if len(linked_hetatm)==0:
                     print("[LOG WARN] no linked hetatm residues - bypass")
                     # untie with HET
                     #het = [x.split() for x in pdb if x.startswith('HET ')]
                     #het = [x[1] for x in het if x[2]==chain]
-                    #lig.df['HETATM'] = lig.df['HETATM'][np.in1d(lig.df['HETATM'].residue_name,het)]
+                    #lig.df['HETATM'] = lig.df['HETATM'][np.isin(lig.df['HETATM'].residue_name,het)]
                 lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM', "OTHERS"], gz=False, append_newline=True)
                 print(f'lig_chain-{chain}')
                 outfile.write(f"rebuilt ligand detected in chain {chain}; exclusively found in HETATM records\n")
@@ -555,7 +555,7 @@ for pdbname in pdbs:
             # remove 1-atom residues
             res_atoms = lig.df["HETATM"].groupby(["residue_name","residue_number"])["atom_number"].nunique()
             res2keep = res_atoms[res_atoms > 1].reset_index().residue_number
-            lig.df["HETATM"] = lig.df["HETATM"][np.in1d(lig.df["HETATM"].residue_number,res2keep)]
+            lig.df["HETATM"] = lig.df["HETATM"][np.isin(lig.df["HETATM"].residue_number,res2keep)]
 
             if f'{pdbname.split(".")[0]}_lig_chain-{chain}.pdb' not in os.listdir(outpath):
                 lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM'], gz=False, append_newline=True)

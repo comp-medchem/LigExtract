@@ -9,7 +9,7 @@ failed = [ln.split("/")[-1].split(".")[0].upper() for ln in failed if ln.startsw
 
 allpdbs = pd.read_csv(pdbslist, sep="\t")
 
-lines2rm = np.in1d(allpdbs.pdb, failed)
+lines2rm = np.isin(allpdbs.pdb, failed)
 if lines2rm.sum()>0:
 	print(f"Removing ** {lines2rm.sum()} ** lines from {pdbslist} due to missing PDF-format file")
 	allpdbs = allpdbs[~lines2rm]

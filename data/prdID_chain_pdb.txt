@@ -1,0 +1,1 @@
+instance_id	prd_id	asym_id	pdb

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 printf "\n################ Build dependency files ################\n" 
 
@@ -7,9 +8,11 @@ rootdir=`realpath "$0"`
 rootdir=`dirname $rootdir`
 rootdir="${rootdir/"/LigExtract/bin"/}"
 
+
 # download BeEM from https://github.com/kad-ecoli/BeEM/
-wget https://github.com/kad-ecoli/BeEM/releases/download/v1.0.1/BeEM.linux -O "$rootdir"/LigExtract/data/bin/BeEM.linux
-chmod a+x "$rootdir"/LigExtract/data/bin/BeEM.linux
+echo "Get BeEM"
+wget https://github.com/kad-ecoli/BeEM/releases/download/v1.0.1/BeEM.linux -O "$rootdir"/LigExtract/bin/BeEM.linux --quiet
+chmod a+x "$rootdir"/LigExtract/bin/BeEM.linux
 
 # Dependency files - one-off
 
@@ -22,11 +25,13 @@ wget ftp://ftp.ebi.ac.uk/pub/databases/msd/sifts/flatfiles/csv/pdb_chain_uniprot
 echo "Get entries.idx"
 wget https://files.wwpdb.org/pub/pdb/derived_data/index/entries.idx -O $rootdir/LigExtract/data/allpdbs.txt --quiet
 echo "Get prd-all.cif.gz"
-wget ftp://ftp.wwpdb.org/pub/pdb/data/bird/prd/prd-all.cif.gz -O $rootdir/LigExtract/data/prd-all.cif.gz --quiet
+wget https://files.wwpdb.org/pub/pdb/data/bird/prd/prd-all.cif.gz -O $rootdir/LigExtract/data/prd-all.cif.gz --quiet
 gunzip $rootdir/LigExtract/data/prd-all.cif.gz
 
 python $rootdir/LigExtract/bin/get_prd2pdb.py $rootdir/LigExtract/data/prd-all.cif
-echo "Get cc-counts.td from ligand Expo"
+echo "Get cc-counts.td from ligand Expo" # Ligand Expo is no longer maitained
+# use ligand information directly from the PDB archive at http://www.wwpdb.org/data/ccd and the index file at 
+# https://files.wwpdb.org/pub/pdb/holdings/refdata_id_list.json.gz 
 wget http://ligand-expo.rcsb.org/dictionaries/cc-counts.tdd -O $rootdir/LigExtract/data/all_pdbligs.txt --quiet
 
 

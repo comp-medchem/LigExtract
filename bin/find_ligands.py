@@ -95,11 +95,11 @@ for f in glob(f'{ligands_dir}/*_lig_chain-*.pdb'):
     cleaned_lig = subprocess.run(f"obabel -i pdb {f} -r -o pdb", shell=True, capture_output=True)
     cleaned_lig_atom = [int(x[22:26].strip()) for x in cleaned_lig.stdout.decode("utf-8").split("\n") if x.startswith("ATOM")]
     cleaned_lig_het = [int(x[22:26].strip()) for x in cleaned_lig.stdout.decode("utf-8").split("\n") if x.startswith("HETATM")]
-    removed_res_solvent_het = original_lig.df['HETATM'][~np.in1d(original_lig.df['HETATM'].residue_number, cleaned_lig_het)][["residue_name", "residue_number"]]
-    removed_res_solvent_atom = original_lig.df['ATOM'][~np.in1d(original_lig.df['ATOM'].residue_number, cleaned_lig_atom)][["residue_name", "residue_number"]]
+    removed_res_solvent_het = original_lig.df['HETATM'][~np.isin(original_lig.df['HETATM'].residue_number, cleaned_lig_het)][["residue_name", "residue_number"]]
+    removed_res_solvent_atom = original_lig.df['ATOM'][~np.isin(original_lig.df['ATOM'].residue_number, cleaned_lig_atom)][["residue_name", "residue_number"]]
     removed_solvent_res.append(np.hstack([removed_res_solvent_het.residue_name.unique(), removed_res_solvent_atom.residue_name.unique()]))
-    original_lig.df['ATOM'] = original_lig.df['ATOM'][np.in1d(original_lig.df['ATOM'].residue_number, cleaned_lig_atom)]
-    original_lig.df['HETATM'] = original_lig.df['HETATM'][np.in1d(original_lig.df['HETATM'].residue_number, cleaned_lig_het)]
+    original_lig.df['ATOM'] = original_lig.df['ATOM'][np.isin(original_lig.df['ATOM'].residue_number, cleaned_lig_atom)]
+    original_lig.df['HETATM'] = original_lig.df['HETATM'][np.isin(original_lig.df['HETATM'].residue_number, cleaned_lig_het)]
     original_lig.to_pdb(path=f, records=None, gz=False, append_newline=True) 
 
 sys.stderr.write("\ndone cleaning ligands.\n")
@@ -382,7 +382,7 @@ for lig,n_repeat in ligs2untie.values:
             ligs2drop.append(lig)
             pockets = pd.concat([pockets,selected_lig])
 
-pockets = pockets[np.in1d(pockets.ligandfile, ligs2drop, invert=True)]
+pockets = pockets[np.isin(pockets.ligandfile, ligs2drop, invert=True)]
 pockets.to_csv(f'pockets_{protein_dir.split("/")[-1]}.txt', sep="\t", index=False)
 
 # final clean-up

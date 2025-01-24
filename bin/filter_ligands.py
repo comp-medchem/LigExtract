@@ -121,13 +121,13 @@ for pdb in pdbs_in_pockets:#["3ilr"]:#
                 files2save.append(f)
                 for x in files2remove: os.remove(f'{lig_dir}/{x}')
                 # update pockets file
-                pockets = pockets[~np.in1d(pockets.ligandfile, files2remove)]
+                pockets = pockets[~np.isin(pockets.ligandfile, files2remove)]
                 remaining_ligs = [x for x in os.listdir(lig_dir) if pdb in x and chain in x and x!=f and x.endswith(".pdb")]
                 if len(remaining_ligs)>0: print("remove remaining ligands that are likely to be crystallography elements and N-glycolysation branches:")
                 for a in remaining_ligs: print("\t",a)
                 for x in remaining_ligs: os.remove(f'{lig_dir}/{x}')
                 # update pockets file
-                pockets = pockets[~np.in1d(pockets.ligandfile, remaining_ligs)]
+                pockets = pockets[~np.isin(pockets.ligandfile, remaining_ligs)]
 
             if len(rareLigs_in_rebuiltLigs) == 0:
                 # both the small and the larger molecule can be a ligand
@@ -142,13 +142,13 @@ for pdb in pdbs_in_pockets:#["3ilr"]:#
                 for a in remaining_ligs: print("\t",a)
                 for x in remaining_ligs: os.remove(f'{lig_dir}/{x}')
                 # update pockets file
-                pockets = pockets[~np.in1d(pockets.ligandfile, remaining_ligs)]
+                pockets = pockets[~np.isin(pockets.ligandfile, remaining_ligs)]
             
         # catch ligands left out, after loop finishes; only remove ligands from current chain; otherwise all other ligands in other chains will be removed
         clean_leftout = [x for x in os.listdir(lig_dir) if pdb in x and x.endswith(".pdb") and x not in files2save and f'_chain-{chain[-1]}_' in x]
         for x in clean_leftout: os.remove(f'{lig_dir}/{x}')
         # update pockets file
-        pockets = pockets[~np.in1d(pockets.ligandfile, clean_leftout)]
+        pockets = pockets[~np.isin(pockets.ligandfile, clean_leftout)]
         if len(clean_leftout)>0: print("remove ligands that are likely to be crystallography additives and N-glycolysation branches:")
         for a in clean_leftout: print("\t",a)
     
@@ -162,7 +162,7 @@ for pdb in pdbs_in_pockets:#["3ilr"]:#
         for a in remaining_ligs: print("\t",a)
         for x in remaining_ligs: os.remove(f'{lig_dir}/{x}')
         # update pockets file
-        pockets = pockets[~np.in1d(pockets.ligandfile, remaining_ligs)]
+        pockets = pockets[~np.isin(pockets.ligandfile, remaining_ligs)]
 
     if has_rebuilt_lig == False and len(rare_ligand)==0: # no ligands of any kind
         print("There are no chain ligands and all small molecules are likely crystallographic additives/reagents as they occur in hundreds other proteins")
@@ -172,7 +172,7 @@ for pdb in pdbs_in_pockets:#["3ilr"]:#
             print("\t",a)
             os.remove(f'{lig_dir}/{a}')
         continue
-        pockets = pockets[~np.in1d(pockets.ligandfile, remaining_ligs)]
+        pockets = pockets[~np.isin(pockets.ligandfile, remaining_ligs)]
 
     if has_rebuilt_lig == True:
         # clean non-rare ligs
@@ -184,7 +184,7 @@ for pdb in pdbs_in_pockets:#["3ilr"]:#
         remaining_ligs = np.setdiff1d(remaining_ligs, rare_lig_file)
         if len(remaining_ligs)>0:
             print("Clean all ligands that are likely to be crystallographic additives/reagents:")
-            pockets = pockets[~np.in1d(pockets.ligandfile, remaining_ligs)]
+            pockets = pockets[~np.isin(pockets.ligandfile, remaining_ligs)]
         for a in remaining_ligs: 
             print("\t",a)
             os.remove(f'{lig_dir}/{a}')
@@ -236,7 +236,7 @@ for pdb in pdbs_in_pockets:#["3ilr"]:#
                         c +=1
 
                 prd_block = np.array(list(zip(prd_block,prd_block[1:]+[c])))
-                get_blocks = prd_block[np.in1d(titles, prd2pdb)]
+                get_blocks = prd_block[np.isin(titles, prd2pdb)]
 
                 seq_list = []
                 for blockStart,blockStop in get_blocks:
@@ -287,7 +287,7 @@ for pdb in pdbs_in_pockets:#["3ilr"]:#
     save_clean_pockets = pd.DataFrame(save_clean_pockets, columns = ["ligandfile","pocketres_chain", "pocketres_chain_size", "chain_name"])
     save_clean_pockets.loc[:,"ligtype"] = np.where(["lig_chain" in x for x in save_clean_pockets.ligandfile], "chain ligand", "small-molecule ligand")
     save_clean_pockets.loc[:,"lig_ID"] = [x.split("lig-")[-1].split(".")[0] for x in save_clean_pockets.ligandfile]
-    save_clean_pockets = save_clean_pockets[~np.in1d(save_clean_pockets.lig_ID, oligos)]
+    save_clean_pockets = save_clean_pockets[~np.isin(save_clean_pockets.lig_ID, oligos)]
     save_clean_pockets.loc[:,"pdbcode"] = [x[0:4] for x in save_clean_pockets.ligandfile]
     #save_clean_pockets_list.append(save_clean_pockets)
     if len(oligos)>0: print(f"The following oligosacharide residues were found and will be excluded from the ligands: {', '.join(oligos)}")
@@ -301,9 +301,9 @@ for pdb in pdbs_in_pockets:#["3ilr"]:#
         prd_duplicates = prd_duplicates.asym_id.values
         rep_lig = [x for x in save_clean_pockets.query(f"pdbcode=='{pdb}'").ligandfile.values if "lig_chain-" in x and x.split("_lig_chain-")[-1][0] in prd_duplicates]
         if len(rep_lig)==0: continue
-        sorted_reps = save_clean_pockets[np.in1d(save_clean_pockets.ligandfile, rep_lig)].sort_values("pocketres_chain_size", ascending=False).ligandfile.values
+        sorted_reps = save_clean_pockets[np.isin(save_clean_pockets.ligandfile, rep_lig)].sort_values("pocketres_chain_size", ascending=False).ligandfile.values
         # first item in sorted_reps is the one to keep; the others are repeated
-        save_clean_pockets = save_clean_pockets[~np.in1d(save_clean_pockets.ligandfile, sorted_reps[1:])]
+        save_clean_pockets = save_clean_pockets[~np.isin(save_clean_pockets.ligandfile, sorted_reps[1:])]
         print(f"deduplicate from {rep_lig} ---> keep {sorted_reps[0]}")
     unique_ligs_idx = save_clean_pockets.sort_values("pocketres_chain_size", ascending=False).drop_duplicates(subset=["lig_ID"],keep="first").index
     removed_idx = np.setdiff1d(save_clean_pockets.index,unique_ligs_idx)
@@ -353,7 +353,7 @@ for pdb in pdbs_in_pockets:#["3ilr"]:#
             unique_lig = save_clean_pockets.query(f"lig_ID == '{dupe_lig}'").sort_values("pocketres_chain_size", ascending=False)[0:1]
             unique_lig = unique_lig.ligandfile.values[0]
             rep_lig = unique_lig.ligandfile.values[1:]
-            save_clean_pockets = save_clean_pockets[~np.in1d(save_clean_pockets.ligandfile, rep_lig)]
+            save_clean_pockets = save_clean_pockets[~np.isin(save_clean_pockets.ligandfile, rep_lig)]
             print(f"keep deduped ligand {unique_lig}")
             keep_ligands_file.write(unique_lig+"\n")
 
@@ -376,16 +376,16 @@ for pdb in pdbs_in_pockets:#["3ilr"]:#
             #print(chain_pockets.columns)
             chain_pockets = chain_pockets.sort_values("pocketres_chain_size", ascending=False).drop_duplicates("same_molid")
             rep_lig = [x for x in save_clean_pockets.ligandfile.values if "lig_chain-" in x and x not in chain_pockets.ligandfile.values]
-            save_clean_pockets = save_clean_pockets[~np.in1d(save_clean_pockets.ligandfile, rep_lig)]
+            save_clean_pockets = save_clean_pockets[~np.isin(save_clean_pockets.ligandfile, rep_lig)]
             # infer duplicates from same PRD_ID
             for prd in prd_chain_pdb.query(f"pdb=='{pdb}'").prd_id.unique():
                 prd_duplicates = prd_chain_pdb.query(f"pdb=='{pdb}' and prd_id=='{prd}'")
                 if len(prd_duplicates)<2: continue
                 prd_duplicates = prd_duplicates.asym_id.values
                 rep_lig = [x for x in save_clean_pockets.query(f"pdbcode=='{pdb}'").ligandfile.values if "lig_chain-" in x and x.split("_lig_chain-")[-1][0] in prd_duplicates]
-                sorted_reps = save_clean_pockets[np.in1d(save_clean_pockets.ligandfile, rep_lig)].sort_values("pocketres_chain_size", ascending=False).ligandfile.values
+                sorted_reps = save_clean_pockets[np.isin(save_clean_pockets.ligandfile, rep_lig)].sort_values("pocketres_chain_size", ascending=False).ligandfile.values
                 # first item in sorted_reps is the one to keep; the others are repeated
-                save_clean_pockets = save_clean_pockets[~np.in1d(save_clean_pockets.ligandfile, sorted_reps[1:])]
+                save_clean_pockets = save_clean_pockets[~np.isin(save_clean_pockets.ligandfile, sorted_reps[1:])]
                 print(f"deduplicate from {rep_lig} ---> keep {sorted_reps[0]}")
 
 
@@ -437,7 +437,7 @@ save_clean_pockets_list = pd.concat(save_clean_pockets_list, sort=False)
 
 k = np.setdiff1d(keep_ligands, save_clean_pockets_list.ligandfile)
 if k.shape[0]>0: print(f"\nINSPECT LIGANDS! Some ligands in {lig_dir}_final_ligands2keep.txt are meant to be kept but are no longer in the pockets list: {','.join(k)}")
-save_clean_pockets_list = save_clean_pockets_list[np.in1d(save_clean_pockets_list.ligandfile, keep_ligands)]
+save_clean_pockets_list = save_clean_pockets_list[np.isin(save_clean_pockets_list.ligandfile, keep_ligands)]
 save_clean_pockets_list.to_csv(f"cleanpockets_{prot_dir.split('/')[-1]}.txt", sep="\t", index=False)
 
 

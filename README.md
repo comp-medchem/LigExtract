@@ -1,4 +1,4 @@
-# LigExtract: Automated Ligand Indentification and Extraction from PDB Structures
+# LigExtract: Automated Ligand Identification and Extraction from PDB Structures
 
 ![](docs/sources/images/ligextract_logo.png)
 
@@ -15,21 +15,20 @@ Below is the overall workflow of LigExtract:
 
 ## Dependencies
 
-LigExtract was developed on Linux and written in Python 3. **It requires PyMol to be installed**.
+LigExtract was developed on Linux and written in Python 3. It requires PyMol to be installed and, to avoid issues with properly interfacing with a system-wide PyMOL, the ligextract env has its own pymol installation.
 
-Depending on the system, you might have trouble running pymol from within LigExtract's conda env.
-Once you installed the condda env provided and activated it, you can run the command below to check if pymol can be used properly.
+Once you have installed the conda env provided and have activated it, you can run the command below to check if PyMOL can be used properly within the LigExtract environment.
 
     pymol -cq
 
-If this command returns an error indicating that pymol cannot be found, go to the troubleshooting section.
+If this command returns an error indicating that PyMOL cannot be properly used, go to the troubleshooting section.
 
 
 ## Running LigExtract
 
 **1.** git clone LigExtract into your home directory. Make ligextract.sh and build_dependencies.sh inside of bin executable (i.e. chmod 755 *.sh). Add path to LigExtract/bin to your $PATH.
 
-**2.** create a conda environment from ligext_env.yml.
+**2.** create a conda environment from ligextract.yml.
 
 **3.** cd into your working directory. This is where all PDBs will be downloaded and processed. This directory must contain a file with a name following the format 
 
@@ -39,7 +38,7 @@ For example, my project is called "myproteins" so the file will be named
         
         myproteins_uniprot_list.txt
 
-This file will contain a list of uniprot IDs (see example in docs)
+This file will contain a list of UniProt IDs (see example in docs)
 
 **4.** Build dependencies (one-off downloads):
         
@@ -68,13 +67,13 @@ with clean-up at the end (i.e. removing all *.cif files):
      
 #### Usage Notes:
 
-- LigExtract will prompt the user to manually reject or accept each of all experiment methods used to obtain the PDBs associated with the uniprot queries.
-- LigExtract will bypass entries with no PDB-format file available. Read more on what causes this situation on https://www.rcsb.org/docs/general-help/structures-without-legacy-pdb-format-files. Eventually we plan to accomodate these exceptions but at the moment LigExtract is not capable on handling them.
+- LigExtract will prompt the user to manually reject or accept each of all experiment methods used to obtain the PDBs associated with the UniProt queries.
+- LigExtract will bypass entries with no PDB-format file available. Read more on what causes this situation on https://www.rcsb.org/docs/general-help/structures-without-legacy-pdb-format-files. Eventually we plan to accommodate these exceptions but at the moment LigExtract is not capable on handling them.
 
 
 #### Troubleshooting
 
-If you cannot run pymol from the command line once LigExtract's environment is activate, you can try these alternative conditions:
+If you cannot run PyMOL from the command line once LigExtract's environment is activate, you can try these alternative conditions:
 
 1) You should replace `cluster_ligands_hierarchical.py` inside `bin` by `cluster_ligands_hierarchical_fixPymol.py` by simply renaming the first script or moving it out of the bin directory, and removing the "_fixPymol" portion of the second script. In order for `cluster_ligands_hierarchical_fixPymol.py` to work, you must make sure that `source deactivate` deactivates LigExtract's environment without reverting into any base environment.
 

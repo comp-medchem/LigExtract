@@ -57,7 +57,7 @@ def fastuniprot2pdb(uniprotLstFile, allpdbsTabl, resolution_limit):
        sys.exit("No retrieved PDBs")
     response = pd.DataFrame(response, columns=["From", "To"])
     print(f"{len(response)} retrieved PDBs")
-    response = response[np.in1d(response.To, allpdbsTabl.query(f"RESOLUTION < {resolution_limit}").pdb)]
+    response = response[np.isin(response.To, allpdbsTabl.query(f"RESOLUTION < {resolution_limit}").pdb)]
     print(f"{len(response)} PDBs under the set resolution")
     response = [list(x) for x in response.values]
     return(response)
@@ -121,7 +121,7 @@ for param,n in unique_experiment_counts:
             sys.exit(123)
 
 
-uniprot_pdb_dict = uniprot_pdb_dict[np.in1d(uniprot_pdb_dict["EXPERIMENT TYPE (IF NOT X-RAY)"].values, accepted_experiment_types)]
+uniprot_pdb_dict = uniprot_pdb_dict[np.isin(uniprot_pdb_dict["EXPERIMENT TYPE (IF NOT X-RAY)"].values, accepted_experiment_types)]
 uniprot_pdb_dict.to_csv(f'{targetdir}_pdb_uniprot_filteredlist.txt', sep="\t", index=False)
 
 accepted_experiment_types = [f"'{x}'" for x in accepted_experiment_types]

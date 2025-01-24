@@ -73,7 +73,7 @@ for pdb, ch in testprotein_lst[["pdbx_PDB_id_code", "pdbx_strand_id"]].drop_dupl
     q = testprotein_lst.query(f"pdbx_PDB_id_code == '{pdb}' and pdbx_strand_id == '{ch}'").pdbx_db_accession.values
     if len(res)>1 and len(q) == len(res):
         #print("Warning N-to-N mapping", pdb, ch, res)
-        if np.in1d(q,res).all(): 
+        if np.isin(q,res).all(): 
             old2new = pd.DataFrame([res,q]).T
             #print(old2new)
         else:
@@ -86,10 +86,10 @@ for pdb, ch in testprotein_lst[["pdbx_PDB_id_code", "pdbx_strand_id"]].drop_dupl
         old2new = pd.DataFrame([res,q]).T
     # there are cases where one of the chains is not shown in pdb_chain_uniprot.csv.gz
     # looks like it might be when the chain is a peptide (2f1y)
-    elif len(q) > len(res) and np.in1d(res, q).all():
+    elif len(q) > len(res) and np.isin(res, q).all():
         # some chains were dropped
         old2new = pd.DataFrame([res,res]).T
-    elif len(q) > len(res) and np.in1d(res, q).all() == False:
+    elif len(q) > len(res) and np.isin(res, q).all() == False:
         # some chains dropped and some chains are not directly mapped in SIFTS
         # This might be risky to assign chains to the list; just use chains in SIFTS
         old2new = pd.DataFrame([res,res]).T

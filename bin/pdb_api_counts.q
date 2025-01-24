@@ -7,61 +7,19 @@
         "type": "terminal",
         "service": "text",
         "parameters": {
-          "attribute": "rcsb_nonpolymer_entity_instance_container_identifiers.comp_id",
+          "attribute": "rcsb_nonpolymer_instance_annotation.comp_id",
           "operator": "exact_match",
           "value": "LIGAND"
         }
       },
       {
-        "logical_operator": "or",
-        "type": "group",
-        "nodes": [
-          {
-            "type": "terminal",
-            "service": "text",
-            "parameters": {
-              "attribute": "rcsb_nonpolymer_instance_feature_summary.comp_id",
-              "operator": "exists",
-              "negation": true
-            }
-          },
-          {
-            "type": "terminal",
-            "service": "text",
-            "parameters": {
-              "attribute": "rcsb_nonpolymer_instance_feature_summary.type",
-              "operator": "exact_match",
-              "value": "HAS_COVALENT_LINKAGE",
-              "negation": true
-            }
-          },
-          {
-            "logical_operator": "and",
-            "type": "group",
-            "nodes": [
-              {
-                "type": "terminal",
-                "service": "text",
-                "parameters": {
-                  "attribute": "rcsb_nonpolymer_instance_feature_summary.comp_id",
-                  "operator": "exact_match",
-                  "value": "LIGAND",
-                  "negation": true
-                }
-              },
-              {
-                "type": "terminal",
-                "service": "text",
-                "parameters": {
-                  "attribute": "rcsb_nonpolymer_instance_feature_summary.type",
-                  "operator": "exact_match",
-                  "value": "HAS_COVALENT_LINKAGE",
-                  "negation": true
-                }
-              }
-            ]
-          }
-        ]
+        "type": "terminal",
+        "service": "text",
+        "parameters": {
+          "attribute": "rcsb_nonpolymer_instance_annotation.type",
+          "operator": "exact_match",
+          "value": "HAS_NO_COVALENT_LINKAGE"
+        }
       }
     ]
   },

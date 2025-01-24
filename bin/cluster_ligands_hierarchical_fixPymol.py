@@ -120,7 +120,7 @@ for pdb in pdbs_in_pockets:
                 if ligkey in filex:
                     print("\t",filex)
                     os.remove(f'{lig_dir}/{filex}')
-                    pockets = pockets[~np.in1d(pockets.ligandfile, filex)]
+                    pockets = pockets[~np.isin(pockets.ligandfile, filex)]
         print("-----------------------------\n")
     
     # update rare ligands from the log file
@@ -153,10 +153,10 @@ for pdb in pdbs_in_pockets:
                 files2save.append(f)
                 for x in files2remove: os.remove(f'{lig_dir}/{x}')
                 # update pockets file
-                pockets = pockets[~np.in1d(pockets.ligandfile, files2remove)]
+                pockets = pockets[~np.isin(pockets.ligandfile, files2remove)]
                 remaining_ligs = [x for x in os.listdir(lig_dir) if pdb in x and chain in x and x!=f and x.endswith(".pdb")]
                 # update pockets file
-                pockets = pockets[~np.in1d(pockets.ligandfile, remaining_ligs)]
+                pockets = pockets[~np.isin(pockets.ligandfile, remaining_ligs)]
                 
     
     if has_rebuilt_lig == True:
@@ -195,7 +195,7 @@ for pdb in pdbs_in_pockets:
                         c +=1
                 
                 prd_block = np.array(list(zip(prd_block,prd_block[1:]+[c])))
-                get_blocks = prd_block[np.in1d(titles, prd2pdb)]
+                get_blocks = prd_block[np.isin(titles, prd2pdb)]
                 
                 seq_list = []
                 for blockStart,blockStop in get_blocks:
@@ -247,7 +247,7 @@ for pdb in pdbs_in_pockets:
     save_clean_pockets = pd.DataFrame(save_clean_pockets, columns = ["ligandfile","pocketres_chain", "pocketres_chain_size", "chain_name"])
     save_clean_pockets["ligtype"] = np.where(["lig_chain" in x for x in save_clean_pockets.ligandfile], "chain ligand", "small-molecule ligand")
     save_clean_pockets["lig_ID"] = [x.split("lig-")[-1].split(".")[0] for x in save_clean_pockets.ligandfile]
-    save_clean_pockets = save_clean_pockets[~np.in1d(save_clean_pockets.lig_ID, oligos)]
+    save_clean_pockets = save_clean_pockets[~np.isin(save_clean_pockets.lig_ID, oligos)]
     
     if len(oligos)>0: print(f"The following oligosacharide residues were found and will be excluded from the ligands: {', '.join(oligos)}")
     
@@ -259,7 +259,7 @@ for pdb in pdbs_in_pockets:
         for x in sparse_pockets: 
             print("\t"+x)
             os.remove(f"{lig_dir}/{x}")
-        save_clean_pockets = save_clean_pockets[np.in1d(save_clean_pockets.ligandfile, sparse_pockets, invert=True)]
+        save_clean_pockets = save_clean_pockets[np.isin(save_clean_pockets.ligandfile, sparse_pockets, invert=True)]
     
     save_clean_pockets_list.append(save_clean_pockets)
 
@@ -287,7 +287,7 @@ sys.stderr.write("\n")
 for p_i, prot in enumerate(prot_lst):
     print(f'**** Protein {prot}')
     pdbs = uniprot2pdbFile.query(f"uniprot == '{prot}'").pdb.str.lower().values
-    pockets_prot = save_clean_pockets[np.in1d(save_clean_pockets.pdbcode, pdbs)]
+    pockets_prot = save_clean_pockets[np.isin(save_clean_pockets.pdbcode, pdbs)]
     if len(pockets_prot) == 0:
         sys.stderr.write(f"\n\n*** Protein {prot} ({p_i+1}/{len(prot_lst)}) : bypass as it has no found ligands in any PDBs.\n")
         print(f"bypass {prot} as it has no found ligands in any PDBs.")
@@ -309,12 +309,12 @@ for p_i, prot in enumerate(prot_lst):
             chainset = chainset.split(";")
             #ligchains = [x.split("chain-")[1].split(".")[0] for x in pdb_ligs.ligandfile.values if "lig_chain" in x]
             # get ligands that have all its chains in the current chainset (i.e. a ligand with chain K will be included in chainset K;L)
-            ligchains = [np.in1d(x.split(";"),chainset).all() for x in pdb_ligs.chain_name]
+            ligchains = [np.isin(x.split(";"),chainset).all() for x in pdb_ligs.chain_name]
             ligchains = [x.split("chain-")[1].split(".")[0] for x in pdb_ligs[ligchains].ligandfile.values]
             allcontactchains = np.hstack([chainset,ligchains])
             protein_pdb = PandasPdb().read_pdb(f"{prot_dir}/{pdb}.pdb")
-            protein_pdb.df["ATOM"] = protein_pdb.df["ATOM"][np.in1d(protein_pdb.df["ATOM"].chain_id, allcontactchains)]
-            protein_pdb.df["HETATM"] = protein_pdb.df["HETATM"][np.in1d(protein_pdb.df["HETATM"].chain_id, allcontactchains)]
+            protein_pdb.df["ATOM"] = protein_pdb.df["ATOM"][np.isin(protein_pdb.df["ATOM"].chain_id, allcontactchains)]
+            protein_pdb.df["HETATM"] = protein_pdb.df["HETATM"][np.isin(protein_pdb.df["HETATM"].chain_id, allcontactchains)]
             protein_pdb.to_pdb(path=f"{prot_dir}/pdbs_filtered_chains/{prot}/{pdb}_keychain{'-'.join(chainset)}.pdb", records=None, gz=False, append_newline=True)
 
     rmsd=subprocess.run(f'bash -c "source deactivate; pymol -cq ~/LigExtract/bin/align_pdbs_pockets.py -- {prot_dir}/pdbs_filtered_chains/{prot}"', shell=True, capture_output=True)
@@ -364,17 +364,17 @@ for p_i, prot in enumerate(prot_lst):
             if "lig_chain" in lig_pdb:
                 chainid = lig_pdb.split("_chain-")[1].split(".")[0]
                 atom_coord = protein_pdb.df["ATOM"].query(f"chain_id == '{chainid}'")
-                atom_coord = atom_coord[np.in1d(atom_coord.residue_number, lig_resn)]
+                atom_coord = atom_coord[np.isin(atom_coord.residue_number, lig_resn)]
                 atom_coord = atom_coord[['x_coord', 'y_coord', 'z_coord']]
                 save_aligned_lig.df["ATOM"] = save_aligned_lig.df["ATOM"].query(f"chain_id == '{chainid}'")
-                save_aligned_lig.df["ATOM"] = save_aligned_lig.df["ATOM"][np.in1d(save_aligned_lig.df["ATOM"].residue_number,lig_resn)]
+                save_aligned_lig.df["ATOM"] = save_aligned_lig.df["ATOM"][np.isin(save_aligned_lig.df["ATOM"].residue_number,lig_resn)]
                 
                 hetatom_coord = protein_pdb.df["HETATM"].query(f"chain_id == '{chainid}'")
-                hetatom_coord = hetatom_coord[np.in1d(hetatom_coord.residue_number, lig_resn)]
+                hetatom_coord = hetatom_coord[np.isin(hetatom_coord.residue_number, lig_resn)]
                 hetatom_coord = hetatom_coord[['x_coord', 'y_coord', 'z_coord']]
                 atom_coord = pd.concat([hetatom_coord,atom_coord])
                 save_aligned_lig.df["HETATM"] = save_aligned_lig.df["HETATM"].query(f"chain_id == '{chainid}'")
-                save_aligned_lig.df["HETATM"] = save_aligned_lig.df["HETATM"][np.in1d(save_aligned_lig.df["HETATM"].residue_number,lig_resn)]
+                save_aligned_lig.df["HETATM"] = save_aligned_lig.df["HETATM"][np.isin(save_aligned_lig.df["HETATM"].residue_number,lig_resn)]
             
             liglines = save_aligned_lig.df["HETATM"].shape[0]+save_aligned_lig.df["ATOM"].shape[0]
             if liglines == 0:

@@ -3,6 +3,7 @@ import numpy as np
 import sys
 import linecache
 from pathlib import Path
+import os
 #home = str(Path.home())
 home = os.path.realpath(__file__)
 home = home.split("/LigExtract")[0]
@@ -48,7 +49,7 @@ with open(cif_file) as prd:
         c +=1
 
 prd_block = np.array(list(zip(prd_block,prd_block[1:]+[c])))
-get_blocks = prd_block[np.in1d(titles, prd2pdb)]
+get_blocks = prd_block[np.isin(titles, prd2pdb)]
 
 seq_list = []
 for blockStart,blockStop in get_blocks:
