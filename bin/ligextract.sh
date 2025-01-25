@@ -40,7 +40,7 @@ rm -f pdbs2download.txt
 mkdir -p cifs
 python $rootdir/LigExtract/bin/downloadPdbs.py --outputDir $d 
 
-
+touch pdb_download.log
 if [[ -f pdbs2download.txt ]]; then 
 	  bash $rootdir/LigExtract/bin/pdb_batch_download.sh -f pdbs2download.txt -c
 fi
@@ -65,6 +65,10 @@ done
 mv *.pdb $d/.
 #mv *chain-id-mapping.txt $d/.
 
+# handle all 5-letter cases
+printf "\nProcess 5-letter codes\n"
+python $rootdir/LigExtract/bin/processLongCodes.py
+
 
 > "$d"_process_uniprot_chains.err
 > "$d"_process_uniprot_chains.txt
@@ -87,9 +91,11 @@ printf "\n---------------------------  Extracting all possible ligands from PDBs
 rm -fR "$d"_LIGS
 python $rootdir/LigExtract/bin/extract_ligands.py --pdbPath $d --outputPath "$d"_LIGS --uniprot2pdbFile "$d"_pdb_uniprot_filteredlist.txt > ligand_extraction.log
 
+
 ls "$d"_LIGS > rawlist_extraction.txt
 
 echo "$filter_option option selected"
+
 
 if [ $filter_option == "filter" ]; then
 	#############################################   MODULE 3  ##################################################

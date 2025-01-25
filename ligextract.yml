@@ -1,13 +1,15 @@
 name: ligextract
 channels:
-  - anaconda
   - defaults
+  - anaconda
   - conda-forge
   - https://repo.anaconda.com/pkgs/main
   - https://repo.anaconda.com/pkgs/r
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
+  - asttokens=2.0.5=pyhd3eb1b0_0
+  - backcall=0.2.0=pyhd3eb1b0_0
   - biopandas=0.5.1=pyhd8ed1ab_1
   - blas=1.0=openblas
   - blosc=1.21.5=hc2324a3_1
@@ -19,10 +21,15 @@ dependencies:
   - cairo=1.18.0=h3faef2a_0
   - certifi=2024.12.14=py39h06a4308_0
   - charset-normalizer=3.3.2=pyhd3eb1b0_0
+  - comm=0.2.1=py39h06a4308_0
   - contourpy=1.3.0=py39h74842e3_2
   - cycler=0.11.0=pyhd3eb1b0_0
   - cyrus-sasl=2.1.28=h52b45da_1
   - dbus=1.13.18=hb2f20db_0
+  - debugpy=1.8.11=py39h6a678d5_0
+  - decorator=5.1.1=pyhd3eb1b0_0
+  - exceptiongroup=1.2.0=py39h06a4308_0
+  - executing=0.8.3=pyhd3eb1b0_0
   - expat=2.6.4=h6a678d5_0
   - font-ttf-dejavu-sans-mono=2.37=hd3eb1b0_0
   - font-ttf-inconsolata=2.001=hcb22688_0
@@ -44,9 +51,16 @@ dependencies:
   - hdf5=1.14.3=nompi_hdf9ad27_105
   - icu=73.2=h59595ed_0
   - idna=3.7=py39h06a4308_0
+  - importlib-metadata=8.5.0=py39h06a4308_0
+  - importlib_metadata=8.5.0=hd3eb1b0_0
   - importlib_resources=6.4.0=py39h06a4308_0
+  - ipykernel=6.29.5=py39h06a4308_1
+  - ipython=8.15.0=py39h06a4308_0
+  - jedi=0.19.2=py39h06a4308_0
   - joblib=1.4.2=py39h06a4308_0
   - jpeg=9e=h5eee18b_3
+  - jupyter_client=8.6.3=py39h06a4308_0
+  - jupyter_core=5.7.2=py39h06a4308_0
   - kiwisolver=1.4.4=py39h6a678d5_0
   - krb5=1.20.1=h143b758_1
   - lcms2=2.16=hb9589c4_0
@@ -79,6 +93,7 @@ dependencies:
   - libpng=1.6.43=h2797004_0
   - libpq=17.2=hdbd6064_0
   - libprotobuf=4.25.3=he621ea3_0
+  - libsodium=1.0.18=h7b6447c_0
   - libssh2=1.11.1=h251f7ec_0
   - libstdcxx=14.2.0=hc0a3c3a_1
   - libstdcxx-ng=14.2.0=h4852527_1
@@ -92,28 +107,40 @@ dependencies:
   - libzlib=1.2.13=h4ab18f5_6
   - lz4-c=1.9.4=h6a678d5_1
   - matplotlib-base=3.9.2=py39hbfdbfaf_1
+  - matplotlib-inline=0.1.6=py39h06a4308_0
   - mmtf-python=1.1.3=pyhd8ed1ab_0
   - msgpack-python=1.0.3=py39hd09550d_0
   - mysql=8.4.0=h29a9f33_1
   - ncurses=6.4=h6a678d5_0
+  - nest-asyncio=1.6.0=py39h06a4308_0
   - networkx=3.2.1=py39h06a4308_0
   - numexpr=2.10.1=py39hd28fd6d_0
   - numpy=2.0.2=py39heeff2f4_0
   - numpy-base=2.0.2=py39h8a23956_0
+  - openbabel=3.1.1=py39h2d01fe1_9
   - openjpeg=2.5.2=he7f1fd0_0
   - openldap=2.6.4=h42fbc30_0
   - openssl=3.4.0=h7b32b05_1
   - packaging=24.2=py39h06a4308_0
   - pandas=2.2.3=py39h6a678d5_0
+  - parso=0.8.4=py39h06a4308_0
   - pcre2=10.42=hebb0a14_1
+  - pexpect=4.8.0=pyhd3eb1b0_3
+  - pickleshare=0.7.5=pyhd3eb1b0_1003
   - pillow=11.0.0=py39hcea889d_1
   - pip=24.2=py39h06a4308_0
   - pixman=0.44.2=h29eaf8c_0
+  - platformdirs=3.10.0=py39h06a4308_0
   - ply=3.11=py39h06a4308_0
   - pmw=2.0.1=py39hf3d152e_1008
   - progress=1.5=py39h06a4308_0
+  - prompt-toolkit=3.0.43=py39h06a4308_0
+  - psutil=5.9.0=py39h5eee18b_1
+  - ptyprocess=0.7.0=pyhd3eb1b0_2
+  - pure_eval=0.2.2=pyhd3eb1b0_0
   - pybind11-abi=4=hd3eb1b0_1
   - pycairo=1.23.0=py39hd1222b9_0
+  - pygments=2.15.1=py39h06a4308_1
   - pymol-open-source=3.0.0=py39hd7ecefa_8
   - pyparsing=3.2.0=py39h06a4308_0
   - pyqt=5.15.10=py39h6a678d5_1
@@ -124,6 +151,7 @@ dependencies:
   - python-tzdata=2023.3=pyhd3eb1b0_0
   - python_abi=3.9=2_cp39
   - pytz=2024.1=py39h06a4308_0
+  - pyzmq=26.2.0=py39h6a678d5_0
   - qt-main=5.15.2=hb6262e9_11
   - rdkit=2024.03.5=py39ha7cc52e_0
   - readline=8.2=h5eee18b_0
@@ -137,14 +165,18 @@ dependencies:
   - snappy=1.2.1=h6a678d5_0
   - sqlalchemy=2.0.37=py39h00e1ef3_0
   - sqlite=3.45.3=h5eee18b_0
+  - stack_data=0.2.0=pyhd3eb1b0_0
   - threadpoolctl=3.5.0=py39h2f386ee_0
   - tk=8.6.14=h39e8969_0
   - tomli=2.0.1=py39h06a4308_0
+  - tornado=6.4.2=py39h5eee18b_0
+  - traitlets=5.14.3=py39h06a4308_0
   - typing-extensions=4.12.2=py39h06a4308_0
   - typing_extensions=4.12.2=py39h06a4308_0
   - tzdata=2025a=h04d1e81_0
   - unicodedata2=15.1.0=py39h5eee18b_1
   - urllib3=2.3.0=py39h06a4308_0
+  - wcwidth=0.2.5=pyhd3eb1b0_0
   - wheel=0.44.0=py39h06a4308_0
   - xorg-kbproto=1.0.7=hb9d3cd8_1003
   - xorg-libice=1.1.2=hb9d3cd8_0
@@ -156,6 +188,7 @@ dependencies:
   - xorg-xextproto=7.3.0=hb9d3cd8_1004
   - xorg-xproto=7.0.31=h27cfd23_1007
   - xz=5.4.6=h5eee18b_1
+  - zeromq=4.3.5=h6a678d5_0
   - zipp=3.21.0=py39h06a4308_0
   - zlib=1.2.13=h4ab18f5_6
   - zstd=1.5.6=hc292b87_0

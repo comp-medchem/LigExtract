@@ -27,7 +27,7 @@ pdbs2download = [x.lower() for x in uniprot_pdb_dict["pdb"].unique()]
 
 
 # check is pdb is already downloaded 
-already_downloaded = [x.split(".")[0] for x in os.listdir(home)]
+already_downloaded = [x.split(".")[0] for x in os.listdir("cifs")]
 
 pdbs2download = np.setdiff1d(pdbs2download, already_downloaded)
 

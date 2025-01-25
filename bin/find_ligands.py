@@ -120,6 +120,7 @@ processbar = Bar('Processing all potential ligands... ', max=len(list_proteins))
 chains_w_Uniprot_lst = {}
 pockets = []
 for proteinfile in list_proteins: 
+    print(proteinfile)
     processbar.next()
     if proteinfile.endswith(".pdb") == False:
         continue
@@ -254,7 +255,7 @@ for proteinfile in list_proteins:
         ligand = pd.concat([ligand.df["HETATM"], ligand.df["ATOM"]])
         
         # Detect groups of multi-residue ligands
-        if len(res_hetatm)>1:
+        if len(res_hetatm)>1 and len(links)>0:
             resgroups = groupresidues(res_hetatm, links)
         else:
             #len hetatm is 0,1
