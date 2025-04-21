@@ -21,14 +21,12 @@ Once you have installed the conda env provided and have activated it, you can ru
 
     pymol -cq
 
-If this command returns an error indicating that PyMOL cannot be properly used, go to the troubleshooting section.
-
 
 ## Running LigExtract
 
-**1.** git clone LigExtract into your home directory. Make ligextract.sh and build_dependencies.sh inside of bin executable (i.e. chmod 755 *.sh). Add path to LigExtract/bin to your $PATH.
+**1.** git clone LigExtract into your home directory. Make ligextract.sh and build_dependencies.sh inside of bin executable (i.e. chmod 755 *.sh). Add path to LigExtract/bin to your $PATH environment.
 
-**2.** create a conda environment from ligextract.yml.
+**2.** create a conda environment from ligextract.yml, and activate it.
 
 **3.** cd into your working directory. This is where all PDBs will be downloaded and processed. This directory must contain a file with a name following the format 
 
@@ -71,15 +69,6 @@ with clean-up at the end (i.e. removing all *.cif files):
 - LigExtract will bypass entries with no PDB-format file available. Read more on what causes this situation on https://www.rcsb.org/docs/general-help/structures-without-legacy-pdb-format-files. Eventually we plan to accommodate these exceptions but at the moment LigExtract is not capable on handling them.
 
 
-#### Troubleshooting
-
-If you cannot run PyMOL from the command line once LigExtract's environment is activate, you can try these alternative conditions:
-
-1) You should replace `cluster_ligands_hierarchical.py` inside `bin` by `cluster_ligands_hierarchical_fixPymol.py` by simply renaming the first script or moving it out of the bin directory, and removing the "_fixPymol" portion of the second script. In order for `cluster_ligands_hierarchical_fixPymol.py` to work, you must make sure that `source deactivate` deactivates LigExtract's environment without reverting into any base environment.
-
-2) If you still have an error when running `cluster_ligands_hierarchical.py` ("FileNotFoundError: No such file or directory: 'myproteins/pdbs_filtered_chains/PXXXX/aligned'"), try to replace `deactivate` by `{HOME}/anaconda3/bin/deactivate` inside that script (3 locations in the script). Note that this command should be used exactly as is, because `HOME` is already a variable in the python script that grabs your own home path. This is the typical path to the `deactivate` executable, and if your path is different you must replace it.
-
-3) If you still get that error when running `cluster_ligands_hierarchical.py`, replace `cluster_ligands_hierarchical.py` by `cluster_ligands_hierarchical_fixPymol_hideconda.py`, making sure you rename the second script with the name of the first.
 
 #### _________
-If you encounter any errors or issues, or if you have any suggestions, please email Natalia Aniceto at: nataliaaniceto[at]ff.ul.pt
+If you encounter any errors or issues, or if you have any suggestions, please email Natalia Aniceto at: nataliaaniceto [at]ff.ul.pt
