@@ -4,4 +4,4 @@ Code maintenance plan:
 
 - Add warning if any of the dependency resources stops working and halt the process
 
-- 
+- Add functionality to allow for PDB queries
