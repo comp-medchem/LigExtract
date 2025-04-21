@@ -27,7 +27,11 @@ rootdir="${rootdir/"/LigExtract/bin"/}"
 # clear out all log files before a new run
 rm -f *.log
 
-printf "\n################ Processing [${d}] ################\n" 
+length=100; padding=$(printf '%*s' "$length" '' | tr ' ' '#')
+
+title=" Processing [${d}] "
+printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
+
 
 ######################################################################################################################
 ###################################################### MODULE 1 ######################################################
@@ -87,7 +91,13 @@ fi
 
 ######################################################################################################################
 ###################################################### MODULE 2 ######################################################
-printf "\n---------------------------  Extracting all possible ligands from PDBs  ---------------------------\n\n"
+
+padding=$(printf '%*s' "$length" '' | tr ' ' '-')
+
+title=" Extracting all possible ligands from PDBs "
+printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
+
+
 rm -fR "$d"_LIGS
 python $rootdir/LigExtract/bin/extract_ligands.py --pdbPath $d --outputPath "$d"_LIGS --uniprot2pdbFile "$d"_pdb_uniprot_filteredlist.txt > ligand_extraction.log
 
@@ -99,12 +109,16 @@ echo "$filter_option option selected"
 
 if [ $filter_option == "filter" ]; then
 	#############################################   MODULE 3  ##################################################
-	printf "\n------  First Ligand Clean-up (crystallography additives, solvents, etc) & Pocket detection  ------\n\n"
+	title=" First Ligand Clean-up (crystallography additives, solvents, etc) & Pocket detection "
+    printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
+
 	python $rootdir/LigExtract/bin/find_ligands.py --pdbPath $d --ligandsPath "$d"_LIGS --dist 6 --uniprot2pdbFile "$d"_pdb_uniprot_filteredlist.txt --keeprepeats n > find_ligands.log
 	
 
   #############################################   MODULE 4  ##################################################
-	printf "\n------------------------------------  Final Ligand Selection  ------------------------------------\n\n"
+	title=" Final Ligand Selection "
+    printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
+
 	python $rootdir/LigExtract/bin/filter_ligands.py --pdbPath $d --ligandsPath "$d"_LIGS --prdCif $rootdir/data/prd-all.cif > filter_ligands.log
 	
 	python $rootdir/LigExtract/bin/assemble_finalreport.py --pdbPath $d --ligandsPath "$d"_LIGS
@@ -114,12 +128,16 @@ fi
 
 if [ $filter_option == "cluster" ]; then
 	#############################################   MODULE 3  ##################################################
-	printf "\n------  First Ligand Clean-up (crystallography additives, solvents, etc) & Pocket detection  ------\n\n"
+	title=" First Ligand Clean-up (crystallography additives, solvents, etc) & Pocket detection "
+    printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
+
 	python $rootdir/LigExtract/bin/find_ligands.py --pdbPath $d --ligandsPath "$d"_LIGS --dist 6 --uniprot2pdbFile "$d"_pdb_uniprot_filteredlist.txt --keeprepeats y > find_ligands.log
 	
 
     #############################################   MODULE 4  ##################################################
-	printf "\n---------------------------------------  Pockets clustering  ---------------------------------------\n\n"
+	title=" Pockets clustering "
+    printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
+
 	rm -f *_pockets_hierarch-clusters.txt
 	python $rootdir/LigExtract/bin/cluster_ligands_hierarchical.py --pdbPath $d --ligandsPath "$d"_LIGS --prdCif $rootdir/data/prd-all.cif --uniprot2pdbFile "$d"_pdb_uniprot_filteredlist.txt > cluster_ligands.log
 	
