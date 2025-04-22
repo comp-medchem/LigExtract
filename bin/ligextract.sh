@@ -1,22 +1,27 @@
 #!/bin/bash
 set -e
 
+VERSION="1.0"
 # /path/to/ligextract.sh -d myproteins -r 3.5 -o cluster -c nan
 # /path/to/ligextract.sh -d myproteins -r 3.5 -o filter -c clean
 
-while getopts ':h?d:r:o:c:' opts; do
+while getopts ':h?d:r:o:c:v' opts; do
   case ${opts} in
-
-  d) d="$OPTARG";;
-	r) res="$OPTARG";;
-	o) filter_option="$OPTARG";;
-	c) cleanup="$OPTARG";;
+    d) d="$OPTARG";;
+    r) res="$OPTARG";;
+    o) filter_option="$OPTARG";;
+    c) cleanup="$OPTARG";;
+    v) 
+        echo "LigExtract version $VERSION"
+        exit 0
+        ;;
     \?|h|*) 
-		echo "Please use:"
+        echo "Please use:"
         echo "   bash ligextract.sh -d [directory with pdbs] -r [maximum PDB resolution accepted] -o ['filter' or 'cluster'] -c ['clean']"
         echo "   e.g. bash ligextract.sh -d path/to/pdbsdir -r 3 -o filter"
+        echo "   -v                          Print version"
         exit 0
-      ;;
+        ;;
   esac
 done
 
