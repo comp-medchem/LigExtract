@@ -36,7 +36,12 @@ uniprot2pdbFile = pd.read_csv(uniprot2pdbFile, sep="\t")
 if prot_dir[-1]=="/": prot_dir = prot_dir[:-1]
 if lig_dir[-1]=="/": lig_dir = lig_dir[:-1]
 
-print("\n------------------  Filtering Ligands  ------------------\n")
+
+length = 90; pad_char = '-'
+
+title="Filtering Ligands"
+padding_total = length - len(title) - 2
+print(f"\n{pad_char * (padding_total // 2)} {title} {pad_char * (padding_total - (padding_total // 2))}\n")
 
 
 pockets = pd.read_csv(f"pockets_{prot_dir.split('/')[-1]}.txt", sep="\t")
@@ -278,7 +283,10 @@ save_clean_pockets.loc[:,"pdbcode"] = [x.split("_")[0] for x in save_clean_pocke
 save_clean_pockets.to_csv(f"cleanpockets_{prot_dir.split('/')[-1]}.txt", sep="\t", index=False)
 
 
-print("\n------------------  Clustering Ligands  ------------------\n")
+title="Clustering Ligands"
+padding_total = length - len(title) - 2
+print(f"\n{pad_char * (padding_total // 2)} {title} {pad_char * (padding_total - (padding_total // 2))}\n")
+
 subprocess.run(f"rm -Rf {prot_dir}/pdbs_filtered_chains; mkdir {prot_dir}/pdbs_filtered_chains", shell=True)
 
 prot_lst = uniprot2pdbFile.uniprot.unique()
@@ -338,7 +346,7 @@ for p_i, prot in enumerate(prot_lst):
         print(f"Successful alignment of {len(rmsd)+1} structures")
     
     ligand_centroid = []
-    sys.stderr.write("\nBuilding pockets clusters...\n")
+    sys.stderr.write("\nBuilding ligand clusters...\n")
     for pdbalign in os.listdir(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs"):#pockets_prot.pdbcode.unique():
         print("PROTEIN: ", pdbalign)
         #bypass = False

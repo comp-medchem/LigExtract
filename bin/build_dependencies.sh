@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-length=100; padding=$(printf '%*s' "$length" '' | tr ' ' '#')
+length=90; padding=$(printf '%*s' "$length" '' | tr ' ' '#')
 
 title=" Build dependency files "
 printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"

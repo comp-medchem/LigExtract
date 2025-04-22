@@ -20,11 +20,10 @@ import sys
 import os
 from pathlib import Path
 import networkx as nx
-import itertools
 import urllib
-from urllib import parse,request
+#from urllib import parse,request
 from time import sleep
-from progress.bar import ChargingBar, Bar
+from progress.bar import Bar
 import argparse
 import gzip
 import subprocess
@@ -32,6 +31,7 @@ import shlex
 import json
 import requests
 import re
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pdbecif.mmcif_io import CifFileReader
 from glob import glob
 #home = str(Path.home())
@@ -54,7 +54,13 @@ uniprot2pdb_file = args.uniprot2pdb_file
 if pdbpath[-1]=="/": pdbpath = pdbpath[:-1]
 if outpath[-1]=="/": outpath = outpath[:-1]
 
-print("\n------------------  Extracting all possible ligands from PDBs  ------------------\n")
+
+length = 90; pad_char = '-'
+
+title="Extracting all possible ligands from PDBs"
+padding_total = length - len(title) - 2
+print(f"\n{pad_char * (padding_total // 2)} {title} {pad_char * (padding_total - (padding_total // 2))}\n")
+
 
 # First handle CIFs that are to large (remove now; to include later)
 largecifs = [x.split("-")[0] for x in glob("*-chain-id-mapping.txt")]
@@ -105,20 +111,6 @@ if len(pdbs)==0:
     print(f" There are no PDB files in the target folder {targetpath}.\n Make sure your PDB files have a '.pdb' extension.")
     sys.exit(123)
 
-
-#subprocess.run("mkdir -p cifs", shell=True)
-#pdbs2extr = np.setdiff1d([x.split(".")[0] for x in pdbs], [x.split(".")[0] for x in os.listdir("cifs")])
-#if len(pdbs2extr)>0: 
-#    bar = Bar('Extracting CIFs... ', max=len(pdbs2extr))
-#    for pdbname in pdbs2extr:
-#        bar.next()
-#        pdbcode = pdbname.split(".")[0]
-#        if f'{pdbcode}.cif' not in os.listdir("cifs"):
-#            print(f'Download {pdbcode}.cif')
-#            sleep(2)
-#            subprocess.run(f"wget https://files.rcsb.org/view/{pdbcode.lower()}.cif --quiet -O cifs/{pdbcode}.cif", shell=True)
-#    
-#    sys.stderr.write("\n")
 
 
 
@@ -179,16 +171,16 @@ prd2pdb.to_csv(f"{home}/LigExtract/data/prd_to_pdb_IDs.txt", sep="\t", index=Fal
 nonpolymer_cnt = {}
 
 
-bar = Bar('Extracting Ligands... ', max=len(pdbs))
 
-for pdbname in pdbs:
-    bar.next()
+
+#for pdbname in pdbs:
+def extractorSplit(pdbname):
     print(f"#######  Finding ligands in  {pdbname}  #######")
     pdbcode = pdbname.upper().split(".")[0]
     pdb = open(f"{pdbpath}/{pdbname}").readlines()
     if len(pdb) == 0:
         print(f"! {pdbname} has zero lines. Please verify the file is valid.")
-        continue
+        return(pdbcode)
     
     try: uniprotid = uniprot2pdb.query(f"pdb == '{pdbcode.upper()}'").uniprot.values[0]
     except IndexError:
@@ -206,7 +198,7 @@ for pdbname in pdbs:
         if np.isin(uniprot2pdb.uniprot.unique(), other_uniprots).any() == False:
             print(f"{pdbcode} does not have any chain for ANY of the desired uniprotIDs in the full collection of targets! REMOVED protein")
         os.remove(f'{pdbpath}/{pdbname}')
-        continue
+        return(pdbcode)
     
     # initialise file to store as a log
     outfile = open(f'{outpath}/{pdbname.split(".")[0]}_ligand_extraction.log',"w")
@@ -285,11 +277,14 @@ for pdbname in pdbs:
     # gather ligands; # ARG in 4kx9 is a ligand 
     # ligand among the protein sequence (e.g. 4H9M) cannot be considered; warning: a standard residue code might appear in HETNAM
     
-    ciffile = f"cifs/{pdbcode.lower()}.cif"
-    cifdata = CifFileReader().read(ciffile)
-    ligands = pd.DataFrame.from_dict(cifdata[pdbcode.upper()]["_pdbx_entity_nonpoly"], orient="index").T #_chem_comp
-    ligands = ligands.comp_id.values
-    ligands = np.setdiff1d(ligands, "HOH")
+    #ciffile = f"cifs/{pdbcode.lower()}.cif"
+    #cifdata = CifFileReader().read(ciffile)
+    if "_pdbx_entity_nonpoly" in data:
+        ligands = pd.DataFrame.from_dict(data["_pdbx_entity_nonpoly"], orient="index").T #_chem_comp
+        ligands = ligands.comp_id.values
+        ligands = np.setdiff1d(ligands, "HOH")
+    else:
+        ligands = np.array([])
 
     ###########  EXTRACT LIGAND - METHOD 1  ###########
     # This method extracts ligands that may exist (partly or entirely) among the residues section.
@@ -386,8 +381,6 @@ for pdbname in pdbs:
     if len(cmpds)>0:
         for cpd in cmpds:
             message = ""
-            #if cpd in modres:
-            #    continue
             with open(f"{home}/LigExtract/data/all_pdbligs.txt") as f: 
                 for line in f:
                     if line == "id\tcount\n": continue
@@ -541,7 +534,7 @@ for pdbname in pdbs:
 
     found_match = np.intersect1d([a[1] for a in lig_seq_all],[x[1] for x in prd_seq_list])
     if len(found_match) == 0:
-        continue
+        return(pdbcode)
     
     match_ids = []
     for m in found_match:
@@ -563,6 +556,21 @@ for pdbname in pdbs:
             else:
                 print(f'lig_chain-{chain} found again')
             outfile.write(f"rebuilt ligand detected in chain {chain}; associated with PRD ID {prdID} which means it is likely active\n")
+    return(pdbcode)
+
+# multithreading
+num_workers = os.cpu_count()-1
+
+
+with ProcessPoolExecutor(max_workers=num_workers) as executor:
+    #executor.map(extractorSplit, pdbs)
+    futures = [executor.submit(extractorSplit, pdb_q) for pdb_q in pdbs]
+    bar = Bar('Extracting Ligands... ', max=len(futures))
+    results = []
+    for f in as_completed(futures):
+        results.append(f.result())
+        bar.next()
+    bar.finish()
 
 
 print("\n\nFinished Ligand extraction.")

@@ -28,12 +28,18 @@ if pdbpath[-1]=="/": pdbpath = pdbpath[:-1]
 # 1ai8 has a chain with P28501 in the CIF file, which is not the primary uniprot P01050
 # pdb_chain_uniprot.csv.gz provides the updated primary uniprot
 
-print("\n------------------  Processing PDBs to gather chain information  ------------------\n")
+length = 90; pad_char = '-'
+
+title="Processing PDBs to gather chain information"
+padding_total = length - len(title) - 2
+print(f"\n{pad_char * (padding_total // 2)} {title} {pad_char * (padding_total - (padding_total // 2))}\n")
+
 
 pdbs = [x for x in os.listdir(pdbpath) if x.endswith(".pdb")]
 
 # old2new
 testprotein_lst = []
+
 for pdbname in pdbs: 
     pdbcode = pdbname.split(".")[0]
     ciffile = f"cifs/{pdbcode}.cif"

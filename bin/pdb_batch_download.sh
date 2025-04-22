@@ -89,7 +89,7 @@ IFS=',' read -ra tokens <<< "$contents"
 #for number in $(seq ${_start} ${_end})
 #do ProgressBar ${number} ${_end}
 #done
-numpdbs=`echo $contents | tr -cd , | wc -c`
+numpdbs=$(($(echo "$contents" | tr -cd ',' | wc -c) + 1))
 _start=1
 _end=$numpdbs
 

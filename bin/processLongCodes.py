@@ -10,8 +10,8 @@ from glob import glob
 from biopandas.pdb import PandasPdb
 import pandas as pd
 
-for pdb_convert in glob("*ligand-id-mapping.tsv"):
-    pdb = pdb_convert.split("-")[0]
+for pdb_convert in glob("cifs/*ligand-id-mapping.tsv"):
+    pdb = pdb_convert.split("-")[0].split("/")[1]
     
     # get name conversions
     

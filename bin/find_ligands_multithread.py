@@ -122,16 +122,17 @@ print("\n\nThe following salt/solvent residues were striped from chain ligands:"
 
 
 list_proteins = [x for x in os.listdir(protein_dir) if x.endswith(".pdb")]
-processbar = Bar('Processing all potential ligands... ', max=len(list_proteins))
-chains_w_Uniprot_lst = {}
-pockets = []
 
 
-for proteinfile in list_proteins:
+
+#for proteinfile in list_proteins:
+def finderSplit(proteinfile):
+    chains_w_Uniprot_lst = {}
+    pockets = []
     print(proteinfile)
     #processbar.next()
     if proteinfile.endswith(".pdb") == False:
-        continue
+        return(proteinfile, None)
     
     pdbcode = proteinfile.split(".pdb")[0]
     
@@ -139,7 +140,7 @@ for proteinfile in list_proteins:
 
     if len(glob(f'{ligands_dir}/{pdbcode}_*.pdb'))==0:
         print("There are no ligands to consider.")
-        continue
+        return(pdbcode,None)
     
     try: uniprotid = uniprot2pdb.query(f"pdb == '{pdbcode.upper()}'").uniprot.values[0]
     except IndexError:
@@ -314,13 +315,37 @@ for proteinfile in list_proteins:
             chains = ";".join(np.unique([x.split("-")[-1] for x in contacts_chainlig_reschain]))
             pockets.append([ligandfile,np.nan,";".join(contacts_chainlig_reschain), ";".join(contacts_chainlig), 
                             len(contacts_chainlig_reschain),len(contacts_chainlig), pdbcode, chains])
+    #
+    #pockets.to_csv("raw_pockets.txt", sep="\t", index=False)
+    return(pockets, chains_w_Uniprot_lst)
+    #return(pdbcode)
 
 
+# Multithreading
+num_workers = os.cpu_count()-1
 
+pockets_thread =[]
+chains_w_Uniprot_thread ={}
+
+with ProcessPoolExecutor(max_workers=num_workers) as executor:
+    futures = [executor.submit(finderSplit, pdb_q) for pdb_q in list_proteins]
+    bar = Bar('Processing all potential ligands... ', max=len(futures))
+    results = []
+    for f in as_completed(futures):
+        results.append(f.result())
+        pocket_job, chains_w_Uniprot_job = f.result()
+        pockets_thread+=pocket_job
+        chains_w_Uniprot_thread = {**chains_w_Uniprot_thread, **chains_w_Uniprot_job}
+        #print(pocket_job, "####", chains_w_Uniprot_job)
+        bar.next()
+    bar.finish()
+
+chains_w_Uniprot_lst = copy(chains_w_Uniprot_thread)
+del chains_w_Uniprot_thread
 
 print ("\n\n--------- Processing the pockets ---------\n")
 
-pockets = pd.DataFrame(pockets)
+pockets = pd.DataFrame(pockets_thread)
 
 allres = []
 for pocket in pockets.values:
@@ -330,8 +355,8 @@ for pocket in pockets.values:
     allres+=[x.split("-")[0] for x in pocket[2].split(";") if x.split("-")[1] in chains_w_Uniprot_lst[pocket[6]]]
 
 if len(allres)==0:
-    print("there are no contact residues between the identified ligands and the respective target protein in each PDB. Please check your Uniprot code(s)")
-    sys.exit(123)
+	print("there are no contact residues between the identified ligands and the respective target protein in each PDB. Please check your Uniprot code(s)")
+	sys.exit(123)
 
 allres = np.hstack(allres)
 pockets.columns = ["ligandfile","resnumber","pocketres_chain","pocketres","pocketres_chain_size","pocketres_size","pdbcode","chain_name"]
@@ -353,8 +378,8 @@ for ligi,pdbi,ci in rejected[["ligandfile","pdbcode","chain_name"]].values:
 
 pockets = pockets[acceptpockets]
 if len(pockets) == 0:
-    print(f"There are no pockets where the ligand is interacting with the protein {uniprotid}")
-    sys.exit(123)
+	print(f"There are no pockets where the ligand is interacting with the protein {uniprotid}")
+	sys.exit(123)
 
 print ("\n\n--------- Solving cases of multiple similar ligands in the same chain (which appear as one ligand record) ---------\n")
 

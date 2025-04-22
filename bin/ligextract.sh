@@ -26,16 +26,19 @@ rootdir="${rootdir/"/LigExtract/bin"/}"
 
 # clear out all log files before a new run
 rm -f *.log
+#rm -fr $d
+rm -fR "$d"_LIGS
 
 length=100; padding=$(printf '%*s' "$length" '' | tr ' ' '#')
 
-title=" Processing [${d}] "
-printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
+title=" Processing [${d}] Query "
+printf "%.*s %s %.*s\n\n\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
 
 
 ######################################################################################################################
 ###################################################### MODULE 1 ######################################################
-
+title=" MODULE 1: Structure retrieval and processing "
+printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
 
 ##download all PDBs
 python $rootdir/LigExtract/bin/getPdbsFromUniprot.py --outputDir $d --uniprots "$d"_uniprot_list.txt --allPdbs $rootdir/LigExtract/data/allpdbs.txt --maxResol $res
@@ -62,11 +65,18 @@ fi
 
 # convert all cifs to PDB to access ATOM and HETATM
 printf "\nConvert mmCIF to pdb\n"
-for cif in `ls cifs/*cif`
-   do
-   $rootdir/LigExtract/bin/BeEM.linux $cif > cifpdbconvert.log
+for cif in cifs/*cif; do
+	pdbname=$(basename "$cif" .cif).pdb
+	if [ ! -f "$d/$pdbname" ]; then
+		$rootdir/LigExtract/bin/BeEM.linux $cif >> cifpdbconvert.log
+		mv $pdbname $d/.	
+	fi
 done
-mv *.pdb $d/.
+
+if compgen -G "*ligand-id-mapping.tsv" > /dev/null; then
+    mv *ligand-id-mapping.tsv cifs/.
+fi
+
 #mv *chain-id-mapping.txt $d/.
 
 # handle all 5-letter cases
@@ -92,13 +102,12 @@ fi
 ######################################################################################################################
 ###################################################### MODULE 2 ######################################################
 
-padding=$(printf '%*s' "$length" '' | tr ' ' '-')
+padding=$(printf '%*s' "$length" '' | tr ' ' '#')
 
-title=" Extracting all possible ligands from PDBs "
-printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
+title=" MODULE 2: Ligand Extraction "
+printf "\n\n%.*s %s %.*s\n\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
 
 
-rm -fR "$d"_LIGS
 python $rootdir/LigExtract/bin/extract_ligands.py --pdbPath $d --outputPath "$d"_LIGS --uniprot2pdbFile "$d"_pdb_uniprot_filteredlist.txt > ligand_extraction.log
 
 
@@ -109,14 +118,15 @@ echo "$filter_option option selected"
 
 if [ $filter_option == "filter" ]; then
 	#############################################   MODULE 3  ##################################################
-	title=" First Ligand Clean-up (crystallography additives, solvents, etc) & Pocket detection "
+	title=" MODULE 3: Ligand Selection and Curation "
     printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
+    printf "\n First Ligand Clean-up (crystallography additives, solvents, etc) & Pocket detection \n"
 
 	python $rootdir/LigExtract/bin/find_ligands.py --pdbPath $d --ligandsPath "$d"_LIGS --dist 6 --uniprot2pdbFile "$d"_pdb_uniprot_filteredlist.txt --keeprepeats n > find_ligands.log
 	
 
-  #############################################   MODULE 4  ##################################################
-	title=" Final Ligand Selection "
+    #############################################   MODULE 4  ##################################################
+	title=" MODULE 4: Final Ligand Selection "
     printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
 
 	python $rootdir/LigExtract/bin/filter_ligands.py --pdbPath $d --ligandsPath "$d"_LIGS --prdCif $rootdir/data/prd-all.cif > filter_ligands.log
@@ -128,14 +138,15 @@ fi
 
 if [ $filter_option == "cluster" ]; then
 	#############################################   MODULE 3  ##################################################
-	title=" First Ligand Clean-up (crystallography additives, solvents, etc) & Pocket detection "
+	title=" MODULE 3: Ligand Selection and Curation "
     printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
+    printf "\n First Ligand Clean-up (crystallography additives, solvents, etc) & Pocket detection \n"
 
 	python $rootdir/LigExtract/bin/find_ligands.py --pdbPath $d --ligandsPath "$d"_LIGS --dist 6 --uniprot2pdbFile "$d"_pdb_uniprot_filteredlist.txt --keeprepeats y > find_ligands.log
 	
 
     #############################################   MODULE 4  ##################################################
-	title=" Pockets clustering "
+	title=" MODULE 4: Ligands clustering "
     printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
 
 	rm -f *_pockets_hierarch-clusters.txt

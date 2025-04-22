@@ -26,7 +26,11 @@ cif_file = args.cif_file
 if prot_dir[-1]=="/": prot_dir = prot_dir[:-1]
 if lig_dir[-1]=="/": lig_dir = lig_dir[:-1]
 
-print("\n------------------  Final Ligand Selection  ------------------\n")
+length = 90; pad_char = '-'
+
+title="Final Ligand Selection"
+padding_total = length - len(title) - 2
+print(f"\n{pad_char * (padding_total // 2)} {title} {pad_char * (padding_total - (padding_total // 2))}\n")
 
 
 pockets = pd.read_csv(f"pockets_{prot_dir.split('/')[-1]}.txt", sep="\t")
@@ -391,7 +395,7 @@ for pdb in pdbs_in_pockets:#["3ilr"]:#
 
             print("\tRemoved duplicate ligands",rep_lig)
 
-        print("\n------ All ligands kept:")
+        print("\n     ------ All ligands kept:")
         for x in save_clean_pockets.ligandfile: 
             print("\t"+x)
             keep_ligands_file.write(x+"\n")

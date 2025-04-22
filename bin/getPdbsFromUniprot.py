@@ -35,7 +35,13 @@ all_pdbs_file = args.all_pdbs
 resolution_lim = args.resolution_lim
 
 
-print("\n------------------  Collecting PDBs from Uniprot IDs provided  ------------------\n")
+length = 90
+pad_char = '-'
+
+title = "Collecting PDBs from Uniprot IDs provided"
+padding_total = length - len(title) - 2
+print(f"\n{pad_char * (padding_total // 2)} {title} {pad_char * (padding_total - (padding_total // 2))}\n")
+
 
 
 # Uniprot mapping no longer retrieves anything (excludes 5-letter codes in ligands)
