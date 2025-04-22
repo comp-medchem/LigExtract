@@ -1,7 +1,11 @@
 Code maintenance plan:
 
-- replace Ligan Expo (no longer maintained) with ligand information directly from the PDB archive at http://www.wwpdb.org/data/ccd and the index file at https://files.wwpdb.org/pub/pdb/holdings/refdata_id_list.json.gz 
+- replace Ligand Expo (no longer maintained) with ligand information directly from the PDB archive at http://www.wwpdb.org/data/ccd and the index file at https://files.wwpdb.org/pub/pdb/holdings/refdata_id_list.json.gz 
 
 - Add warning if any of the dependency resources stops working and halt the process
 
 - Add functionality to allow for PDB queries
+
+- Add ability to handle structures with too many chains (structure file is split)
+
+- 6FJ2 has LYS-VAL ligand that is being incorrectly identified as separate units - fix!
