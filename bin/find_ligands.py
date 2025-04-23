@@ -3,7 +3,6 @@ import numpy as np
 from biopandas.pdb import PandasPdb
 import sys
 import os
-from itertools import combinations
 from rdkit import Chem
 from rdkit.Chem.Descriptors import ExactMolWt
 from rdkit.Chem.rdmolfiles import MolFromPDBFile
@@ -96,8 +95,10 @@ removed_solvent_res = []
 bar1 = Bar('Cleaning all chain ligands... ', max=len(glob(f'{ligands_dir}/*_lig_chain-*.pdb')))
 for f in glob(f'{ligands_dir}/*_lig_chain-*.pdb'):
     bar1.next()
+    if "_lig_chain-h" in f: continue #bypass ligands that have been assembled based on distance in the previous module
     original_lig = PandasPdb().read_pdb(f)
     cleaned_lig = subprocess.run(f"obabel -i pdb {f} -r -o pdb", shell=True, capture_output=True)
+    # spacing according to obabel output
     cleaned_lig_atom = [int(x[22:26].strip()) for x in cleaned_lig.stdout.decode("utf-8").split("\n") if x.startswith("ATOM")]
     cleaned_lig_het = [int(x[22:26].strip()) for x in cleaned_lig.stdout.decode("utf-8").split("\n") if x.startswith("HETATM")]
     removed_res_solvent_het = original_lig.df['HETATM'][~np.isin(original_lig.df['HETATM'].residue_number, cleaned_lig_het)][["residue_name", "residue_number"]]
@@ -129,7 +130,7 @@ pockets = []
 
 for proteinfile in list_proteins:
     print(proteinfile)
-    #processbar.next()
+    processbar.next()
     if proteinfile.endswith(".pdb") == False:
         continue
     
@@ -148,15 +149,10 @@ for proteinfile in list_proteins:
     
     prot = PandasPdb().read_pdb(f'{protein_dir}/{proteinfile}')
     
-    #links = prot.df["OTHERS"].query("record_name == 'LINK'").entry.values
-    #links = ['LINK  '+x for x in links]
-    #links = [x.strip() for x in links if float(x.split(" ")[-1])<2.15 and " HOH " not in x] # max covalent distance
     ciffile = f"cifs/{pdbcode.lower()}.cif"
     cifdata = CifFileReader().read(ciffile)
     if "_struct_conn" in cifdata[pdbcode.upper()]:
         links = pd.DataFrame.from_dict(cifdata[pdbcode.upper()]["_struct_conn"], orient="index").T
-        #dist = links.pdbx_dist_value.astype(float) < 2.15 # max covalent distance
-        #links = links[dist]
         links = links.query("ptnr1_label_comp_id != 'HOH'")
         links = links.query("conn_type_id == 'covale'")
     else:
@@ -265,7 +261,7 @@ for proteinfile in list_proteins:
 
         ligand = pd.concat([ligand.df["HETATM"], ligand.df["ATOM"]])
         
-        # Detect groups of multi-residue ligands
+        # Detect groups of multi-residue ligands // this only works for same-chain residues
         if len(res_hetatm)>1 and len(links)>0:
             resgroups = groupresidues(res_hetatm, links)
         else:

@@ -21,7 +21,6 @@ import os
 from pathlib import Path
 import networkx as nx
 import urllib
-#from urllib import parse,request
 from time import sleep
 from progress.bar import Bar
 import argparse
@@ -34,6 +33,9 @@ import re
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pdbecif.mmcif_io import CifFileReader
 from glob import glob
+from scipy.spatial.distance import euclidean
+from itertools import product,combinations
+
 #home = str(Path.home())
 home = os.path.realpath(__file__)
 home = home.split("/LigExtract")[0]
@@ -112,6 +114,21 @@ if len(pdbs)==0:
     sys.exit(123)
 
 
+def detectBoundLigands(file1, file2):
+    """
+    detect minimum distance between two molecules (HETATM group) to indicate possible covalent bond; confirmed with PyMOL dist function
+    """
+    lig1 = PandasPdb().read_pdb(file1)
+    lig2 = PandasPdb().read_pdb(file2)
+    lig1_coor = lig1.df['HETATM'][["x_coord","y_coord","z_coord"]].values
+    lig2_coor = lig2.df['HETATM'][["x_coord","y_coord","z_coord"]].values
+    ed = []
+    for coor1, coor2 in product(lig1_coor, lig2_coor):
+        ed.append(euclidean(coor1, coor2))
+    #resnum1 = lig1.df["HETATM"].residue_number.unique()[0]
+    #resnum2 = lig2.df["HETATM"].residue_number.unique()[0]
+    return(min(ed)) #1.7: print("might be covalently bound")
+
 
 
 # After all cifs have been downloaded, screen them to grab PRD IDs
@@ -127,6 +144,8 @@ for pdb in pdbs:
         data = pd.DataFrame.from_dict(data["_pdbx_molecule"], orient="index").T
         data.loc[:,"pdb"] = pdbcode
         all_prds_chains.append(data)
+
+bar.finish()
 
 if len(all_prds_chains)>0:
     all_prds_chains = pd.concat(all_prds_chains)
@@ -149,6 +168,7 @@ for pdb in pdbs:
         data = pd.DataFrame.from_dict(data["_atom_site"], orient="index").T
         pdb_auth_chains = data[["auth_asym_id", "label_asym_id"]].drop_duplicates()
         pdb_auth_chains_dict[pdbcode] = {newlabel:authlabel for authlabel,newlabel in pdb_auth_chains[["auth_asym_id", "label_asym_id"]].values}
+bar.finish()
 
 # translate PRD's chains (reported as label_asym_id) to auth_asym_id
 all_prds_chains_NEW = []
@@ -201,10 +221,10 @@ def extractorSplit(pdbname):
         return(pdbcode)
     
     # initialise file to store as a log
-    outfile = open(f'{outpath}/{pdbname.split(".")[0]}_ligand_extraction.log',"w")
-    outfile.write(f" ###### LOG OF LIGAND EXTRACTION FOR {pdbname} ######\n\n")
-    outfile.write(f"results obtained from PDBs in {originpath}\n")
-    outfile.write(f"results stored in {targetpath}\n\n")
+    logfile = open(f'{outpath}/{pdbcode.lower()}_ligand_extraction.log',"w")
+    logfile.write(f" ###### LOG OF LIGAND EXTRACTION FOR {pdbname} ######\n\n")
+    logfile.write(f"results obtained from PDBs in {originpath}\n")
+    logfile.write(f"results stored in {targetpath}\n\n")
     
     ciffile = f"cifs/{pdbcode.lower()}.cif"
     cifdata = CifFileReader().read(ciffile)
@@ -334,7 +354,7 @@ def extractorSplit(pdbname):
                 lig.df['HETATM'] = lig.df['HETATM'][np.isin(lig.df['HETATM'].residue_number,all_linked_atms)] # linked_hetatm
                 lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM', "OTHERS"], gz=False, append_newline=True)
                 print(f'lig_chain-{chain}')
-                outfile.write(f"rebuilt ligand detected in chain {chain}\n")
+                logfile.write(f"rebuilt ligand detected in chain {chain}\n")
 
             if len(res_atom) == 0: # ligand is entirely in HETATM but has multiple residues
                 res_hetatm =["{:>3}".format(a) + "{:>2}".format(b) + "{:>4}".format(c) for a,b,c in res_hetatm]
@@ -351,7 +371,7 @@ def extractorSplit(pdbname):
                     #lig.df['HETATM'] = lig.df['HETATM'][np.isin(lig.df['HETATM'].residue_name,het)]
                 lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM', "OTHERS"], gz=False, append_newline=True)
                 print(f'lig_chain-{chain}')
-                outfile.write(f"rebuilt ligand detected in chain {chain}; exclusively found in HETATM records\n")
+                logfile.write(f"rebuilt ligand detected in chain {chain}; exclusively found in HETATM records\n")
     
     
     ##########  EXTRACT LIGAND - METHOD 2  ###########
@@ -417,14 +437,14 @@ def extractorSplit(pdbname):
                     links_warning.append(link)
             
             if len(links_warning)>0:
-                outfile.write(f"{cpd}   ligand connected to other molecules. {message}\n")
+                logfile.write(f"{cpd}   ligand connected to other molecules. {message}\n")
                 print(f"    WARNING!  Ligand {cpd} appears to be connected to other molecules (see .log file).\n")
                 print(f"    This means it (1) is just a portion of the ligand or (2) is covalently bound (which requires further struture correction to return both ligand and protein to original unbound structure)\n")
-                outfile.write("\t"+"            ---- res 1 ----               ---- res 2 ----                 bond (A)\n")
+                logfile.write("\t"+"            ---- res 1 ----               ---- res 2 ----                 bond (A)\n")
                 for w in links_warning:
-                    outfile.write("\t"+w+"\n")
+                    logfile.write("\t"+w+"\n")
             else:
-                outfile.write(f"{cpd}   ligand detected. {message}\n")
+                logfile.write(f"{cpd}   ligand detected. {message}\n")
             
             lig = PandasPdb().read_pdb(f'{originpath}/{pdbname}')
             chains_lig = lig.df["HETATM"][lig.df["HETATM"].residue_name==cpd].chain_id.unique()
@@ -435,6 +455,49 @@ def extractorSplit(pdbname):
                 lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_chain-{chain}_lig-{cpd}.pdb', records=['ATOM', 'HETATM', "OTHERS"], 
                                 gz=False, append_newline=True)
                 print(f'{pdbname.split(".")[0]}_chain-{chain}_lig-{cpd}')
+
+
+    # compare all ligands in cmpds, if links is empty. Rebuilding from links will happen in next module
+    lig_files = glob(f'{outpath}/{pdbcode.lower()}*_lig-*.pdb')
+    if len(links)> 0: 
+        mismatched_chains_links = (links.ptnr1_label_asym_id != links.ptnr2_label_asym_id).any()
+    else: mismatched_chains_links = False
+    if (len(links)==0 or mismatched_chains_links==True) and len(lig_files)>1:# empty links or residues are of different chains
+        G = nx.Graph()
+        G.add_nodes_from(lig_files)
+        for f1, f2 in combinations(lig_files, 2):
+            if detectBoundLigands(f1, f2) <= 1.7:
+                G.add_edge(f1, f2)
+
+        # Find connected components
+        connected_ligand_groups = list(nx.connected_components(G))
+
+        for group in connected_ligand_groups:
+            if len(group) == 1:
+                continue  # single-res ligands, skip
+            lig_merged = []
+            atom_numbers = []
+            for file in group:
+                lig = PandasPdb().read_pdb(file)
+                lig_merged.append(lig.df["HETATM"])
+                atom_numbers.extend(lig.df["HETATM"].atom_number.values)
+            pair_bound = pd.concat(lig_merged)
+
+            # Save merged ligand
+            chainName = pair_bound.chain_id.unique()[0]
+            new_filename = f'{outpath}/{pdbcode.lower()}_lig_chain-h{chainName}.pdb'
+            
+            lig = PandasPdb().read_pdb(f'{originpath}/{pdbcode.lower()}.pdb')
+            lig.df["HETATM"] = lig.df["HETATM"][lig.df["HETATM"].atom_number.isin(atom_numbers)]
+            lig.to_pdb(path=new_filename, records=['HETATM'], gz=False, append_newline=True)
+
+            # Remove original ligand files
+            for file in group: os.remove(file)
+
+            # log
+            names = ', '.join([f.split('_lig-')[-1].split('.pdb')[0] for f in group])
+            logfile.write(f"Connected ligands merged ({len(group)}): {names} (individual ligand files removed)\n")
+
 
     ########## METHOD 3: collecting oligosacharide chain ligands ##########
 
@@ -555,7 +618,8 @@ def extractorSplit(pdbname):
                 print(f'lig_chain-{chain}')
             else:
                 print(f'lig_chain-{chain} found again')
-            outfile.write(f"rebuilt ligand detected in chain {chain}; associated with PRD ID {prdID} which means it is likely active\n")
+            logfile.write(f"rebuilt ligand detected in chain {chain}; associated with PRD ID {prdID} which means it is likely active\n")
+
     return(pdbcode)
 
 # multithreading

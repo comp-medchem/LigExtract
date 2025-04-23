@@ -298,12 +298,12 @@ for p_i, prot in enumerate(prot_lst):
     pdbs = uniprot2pdbFile.query(f"uniprot == '{prot}'").pdb.str.lower().values
     pockets_prot = save_clean_pockets[np.isin(save_clean_pockets.pdbcode, pdbs)]
     if len(pockets_prot) == 0:
-        sys.stderr.write(f"\n\n*** Protein {prot} ({p_i+1}/{len(prot_lst)}) : bypass as it has no found ligands in any PDBs.\n")
+        sys.stderr.write(f"\n\n*** Clustering Protein {prot} ({p_i+1}/{len(prot_lst)} proteins) : bypass as it has no found ligands in any PDBs.\n")
         print(f"bypass {prot} as it has no found ligands in any PDBs.")
         continue
     # reset folder in case this was already run before for this protein
     subprocess.run(f"rm -Rf {prot_dir}/pdbs_filtered_chains/{prot}; mkdir {prot_dir}/pdbs_filtered_chains/{prot}", shell=True)
-    sys.stderr.write(f"\n\n*** protein {prot} ({p_i+1}/{len(prot_lst)}) ***\n")
+    sys.stderr.write(f"\n\n*** Clustering protein {prot} ({p_i+1}/{len(prot_lst)} proteins) ***\n")
     bar = Bar("Aligning PDBs ... ", max=pockets_prot.pdbcode.nunique()) 
     
     # prior to alignment chains need to be filtered and split when appropriate

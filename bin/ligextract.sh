@@ -2,8 +2,8 @@
 set -e
 
 VERSION="1.0"
-# /path/to/ligextract.sh -d myproteins -r 3.5 -o cluster -c nan
-# /path/to/ligextract.sh -d myproteins -r 3.5 -o filter -c clean
+# ligextract.sh -d myproteins -r 3.5 -o cluster -c no
+# ligextract.sh -d myproteins -r 3.5 -o cluster -c yes
 
 while getopts ':h?d:r:o:c:v' opts; do
   case ${opts} in
@@ -17,9 +17,9 @@ while getopts ':h?d:r:o:c:v' opts; do
         ;;
     \?|h|*) 
         echo "Please use:"
-        echo "   bash ligextract.sh -d [directory with pdbs] -r [maximum PDB resolution accepted] -o ['filter' or 'cluster'] -c ['clean']"
-        echo "   e.g. bash ligextract.sh -d path/to/pdbsdir -r 3 -o filter"
-        echo "   -v                          Print version"
+        echo "   ligextract.sh -d [directory that will receive pdbs and processed ligands] -r [maximum PDB resolution accepted] -o ['filter' or 'cluster'] -c ['yes' or 'no']"
+        echo "   e.g. ligextract.sh -d queryName -r 2.5 -o cluster -c no"
+        echo "   ligextract.sh -v      Print version"
         exit 0
         ;;
   esac
@@ -33,8 +33,9 @@ rootdir="${rootdir/"/LigExtract/bin"/}"
 rm -f *.log
 #rm -fr $d
 rm -fR "$d"_LIGS
+rm -fR clusters; mkdir clusters
 
-length=100; padding=$(printf '%*s' "$length" '' | tr ' ' '#')
+length=90; padding=$(printf '%*s' "$length" '' | tr ' ' '#')
 
 title=" Processing [${d}] Query "
 printf "%.*s %s %.*s\n\n\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
@@ -156,12 +157,12 @@ if [ $filter_option == "cluster" ]; then
 
 	rm -f *_pockets_hierarch-clusters.txt
 	python $rootdir/LigExtract/bin/cluster_ligands_hierarchical.py --pdbPath $d --ligandsPath "$d"_LIGS --prdCif $rootdir/data/prd-all.cif --uniprot2pdbFile "$d"_pdb_uniprot_filteredlist.txt > cluster_ligands.log
-	
+	mv *clusters*.txt clusters/.
 fi
 
 
 # cleaup
-if [ $cleanup == "clean" ]; then
-    rm *.cif
+if [ $cleanup == "yes" ]; then
+    rm -r cifs
 fi
 
