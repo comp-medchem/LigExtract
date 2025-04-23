@@ -42,13 +42,20 @@ This file will contain a list of UniProt IDs (see example in docs)
         
         build_dependencies.sh
 
-**5.** Run LigExtract for your query proteins in your *_uniprot_list.txt file (without cleaning-up at the end).
+**5.** Run LigExtract for your query proteins in your *_uniprot_list.txt file (without cleaning-up at the end). You can use the *cluster* mode if you want to keep all ligands (recommended for molecular docking, binding sites study, etc):
 
-        ligextract.sh -d myproteins -r 3.5 -o cluster -c nan
+        ligextract.sh -d myproteins -r 2.5 -o cluster -c no
+        
+Alternatively use the *filter* mode when you want a list of deduplicated ligands:
 
-with clean-up at the end (i.e. removing all *.cif files):
+        ligextract.sh -d myproteins -r 2.5 -o filter -c no
+	
 
-        ligextract.sh -d myproteins -r 2.5 -o filter -c clean
+#### Alternative commands
+
+Cluster mode with clean-up at the end (i.e. removing all *.cif files):
+
+        ligextract.sh -d myproteins -r 2.5 -o cluster -c yes
 
   In this example, ligextract will only consider PDBs up to 2.5 Angstrom resolution and will employ the "cluster" mode (i.e., all ligands that survive filtration are kept, even if duplicated)
   
@@ -60,7 +67,7 @@ with clean-up at the end (i.e. removing all *.cif files):
      -d    name of the directory that will be created with all PDBs. This will be the prefix for multiple files.
      -r    maximum PDB resolution accepted
      -o    selected ligand selection mode: can be 'filter' or 'cluster'
-     -c    cleaning outcome: 'clean' will delete all *.cif files; 'nan' will keep all *.cif files.
+     -c    cleaning outcome: 'yes' will delete cifs directory; 'no' will keep all *.cif files.
      -v    See installed version
 
      
