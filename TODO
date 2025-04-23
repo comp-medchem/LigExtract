@@ -7,5 +7,3 @@ Code maintenance plan:
 - Add functionality to allow for PDB queries
 
 - Add ability to handle structures with too many chains (structure file is split)
-
-- 6FJ2 has LYS-VAL ligand that is being incorrectly identified as separate units - fix!
