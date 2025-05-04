@@ -45,29 +45,7 @@ print(f"\n{pad_char * (padding_total // 2)} {title} {pad_char * (padding_total -
 
 
 # Uniprot mapping no longer retrieves anything (excludes 5-letter codes in ligands)
-def fastuniprot2pdb(uniprotLstFile, allpdbsTabl, resolution_limit):
-    for ntry in range(5):
-        try:
-            job_id = submit_id_mapping(from_db="UniProtKB_AC-ID", to_db="PDB", ids=uniprotLstFile)
-            break
-        except requests.HTTPError:
-            sleep(3)
-            print("retry uniprot mapping...")
-            continue
-    if check_id_mapping_results_ready(job_id):
-        link = get_id_mapping_results_link(job_id)
-        response = get_id_mapping_results_search(link)
-    else:
-        print("There was an issue with the server. Failed after 5 requests.")
-    response = [[x["from"], x["to"]] for x in response["results"]]
-    if len(response)==0:
-       sys.exit("No retrieved PDBs")
-    response = pd.DataFrame(response, columns=["From", "To"])
-    print(f"{len(response)} retrieved PDBs")
-    response = response[np.isin(response.To, allpdbsTabl.query(f"RESOLUTION < {resolution_limit}").pdb)]
-    print(f"{len(response)} PDBs under the set resolution")
-    response = [list(x) for x in response.values]
-    return(response)
+#def fastuniprot2pdb(uniprotLstFile, allpdbsTabl, resolution_limit):
 
 # This is the function to use now
 def getuniprot2pdb(uniprotLstFile, allpdbsTabl, resolution_limit):

@@ -15,6 +15,8 @@ from sklearn.cluster import AgglomerativeClustering
 from scipy.spatial.distance import euclidean
 from copy import copy
 from pathlib import Path
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from pdbecif.mmcif_io import CifFileReader
 #HOME = str(Path.home())
 HOME = os.path.realpath(__file__)
 HOME = HOME.split("/LigExtract")[0]
@@ -59,7 +61,7 @@ bar = Bar('Filtering ligands in each PDB... ', max=len(pdbs_in_pockets))
 
 
 for pdb in pdbs_in_pockets:
-    #bar.next()
+    bar.next()
     print(f"\n############# {pdb} ###########\n")
     
     if len(glob(f'{lig_dir}/{pdb}_*.pdb'))==0:
@@ -134,8 +136,8 @@ for pdb in pdbs_in_pockets:
     currentfiles = [x.split("_lig-")[-1].split(".")[0] for x in currentfiles]
     if np.intersect1d(currentfiles,oligos).shape[0]>0: print("The current ligands are glycosylation groups, and will be excluded:", " ".join(np.intersect1d(currentfiles,oligos)))
     for x in np.intersect1d(currentfiles,oligos): 
-    	for i in glob(f'{lig_dir}/{pdb}*-{x}.pdb'):
-    		os.remove(i)
+        for i in glob(f'{lig_dir}/{pdb}*-{x}.pdb'):
+            os.remove(i)
     currentfiles = np.setdiff1d(currentfiles, oligos)
     rare_ligand = np.intersect1d(rare_ligand,currentfiles)
     print("small ligand(s):", rare_ligand)
@@ -269,6 +271,7 @@ for pdb in pdbs_in_pockets:
     
     save_clean_pockets_list.append(save_clean_pockets)
 
+bar.finish()
 
 oligos_file.close()
 
@@ -293,39 +296,70 @@ prot_lst = uniprot2pdbFile.uniprot.unique()
 
 sys.stderr.write("\n")
 
-for p_i, prot in enumerate(prot_lst):
+
+#for p_i, prot in enumerate(prot_lst):
+def clusteringSplit(prot, p_i):
     print(f'**** Protein {prot}')
     pdbs = uniprot2pdbFile.query(f"uniprot == '{prot}'").pdb.str.lower().values
     pockets_prot = save_clean_pockets[np.isin(save_clean_pockets.pdbcode, pdbs)]
     if len(pockets_prot) == 0:
         sys.stderr.write(f"\n\n*** Clustering Protein {prot} ({p_i+1}/{len(prot_lst)} proteins) : bypass as it has no found ligands in any PDBs.\n")
         print(f"bypass {prot} as it has no found ligands in any PDBs.")
-        continue
+        return(prot) #continue
     # reset folder in case this was already run before for this protein
     subprocess.run(f"rm -Rf {prot_dir}/pdbs_filtered_chains/{prot}; mkdir {prot_dir}/pdbs_filtered_chains/{prot}", shell=True)
-    sys.stderr.write(f"\n\n*** Clustering protein {prot} ({p_i+1}/{len(prot_lst)} proteins) ***\n")
-    bar = Bar("Aligning PDBs ... ", max=pockets_prot.pdbcode.nunique()) 
+    #sys.stderr.write(f"\n\n*** Clustering protein {prot} ({p_i+1}/{len(prot_lst)} proteins) ***\n")
+    #bar = Bar("Aligning PDBs ... ", max=pockets_prot.pdbcode.nunique()) 
     
     # prior to alignment chains need to be filtered and split when appropriate
+    print("CLEANING STRUCTURES BEFORE ALIGNMENT:")
     for pdb in pockets_prot.pdbcode.unique():
-        bar.next()
+        #bar.next()
         pdb_ligs = pockets_prot.query(f"pdbcode == '{pdb}'")
-        ligs_inmultichain = [";" in x for x in pdb_ligs.chain_name.values]
+        #ligs_inmultichain = [";" in x for x in pdb_ligs.chain_name.values]
         
+        # modres
+        ciffile = f"cifs/{pdb}.cif"
+        cifdata = CifFileReader().read(ciffile)
+        data = cifdata[pdb.upper()]
+        if "_pdbx_struct_mod_residue" in data:
+            data = pd.DataFrame.from_dict(data["_pdbx_struct_mod_residue"], orient="index").T
+            modres = data.label_comp_id.unique()
+        else:
+            modres = []
+
         # Split chains to alow self alignment; only keep multiple chains if at least one ligand has then simultaneouly
         allcontactchains = pdb_ligs.chain_name.unique()
         for chainset in allcontactchains:
             chainset = chainset.split(";")
             #ligchains = [x.split("chain-")[1].split(".")[0] for x in pdb_ligs.ligandfile.values if "lig_chain" in x]
             # get ligands that have all its chains in the current chainset (i.e. a ligand with chain K will be included in chainset K;L)
-            ligchains = [np.isin(x.split(";"),chainset).all() for x in pdb_ligs.chain_name]
-            ligchains = [x.split("chain-")[1].split(".")[0] for x in pdb_ligs[ligchains].ligandfile.values]
-            allcontactchains = np.hstack([chainset,ligchains])
+            complexingchains = [np.isin(x.split(";"),chainset).all() for x in pdb_ligs.chain_name]
+            ligchains = pdb_ligs[complexingchains].ligandfile.values
+            chainfromlig_lst = []
+            ligs2keep = []
+            for ligFile in ligchains:
+                protein_pdb = PandasPdb().read_pdb(f"{lig_dir}/{ligFile}").df
+                chainfromlig = np.unique(np.hstack([protein_pdb["ATOM"].chain_id.unique(), protein_pdb["HETATM"].chain_id.unique()]))
+                chainfromlig_lst.append(chainfromlig)
+                ligs2keep.append(protein_pdb["HETATM"].residue_name.unique())
+            chainfromlig_lst = np.unique(np.hstack(chainfromlig_lst))
+            allcontactchains = np.unique(np.hstack([chainset,chainfromlig_lst]))
+            # save PDB with all participating chains (ligand or protein(s) )
             protein_pdb = PandasPdb().read_pdb(f"{prot_dir}/{pdb}.pdb")
-            protein_pdb.df["ATOM"] = protein_pdb.df["ATOM"][np.isin(protein_pdb.df["ATOM"].chain_id, allcontactchains)]
-            protein_pdb.df["HETATM"] = protein_pdb.df["HETATM"][np.isin(protein_pdb.df["HETATM"].chain_id, allcontactchains)]
+            protein_pdb.df["ATOM"] = protein_pdb.df["ATOM"][protein_pdb.df["ATOM"].chain_id.isin(allcontactchains)]
+            protein_pdb.df["HETATM"] = protein_pdb.df["HETATM"][protein_pdb.df["HETATM"].chain_id.isin(allcontactchains)]
+            # remove all lines that are HETATM and not in pdb_ligs and NOT is modres
+            all_ligs = protein_pdb.df["HETATM"].residue_name.unique()
+            ligs2keep = np.unique(np.hstack(ligs2keep))
+            ligs2keep = np.setdiff1d(ligs2keep, modres)
+            lig2discard = protein_pdb.df["HETATM"][~protein_pdb.df["HETATM"].residue_name.isin(ligs2keep)].residue_name.unique()
+            protein_pdb.df["HETATM"] = protein_pdb.df["HETATM"][protein_pdb.df["HETATM"].residue_name.isin(ligs2keep)]
+            print(f"removing resname from {pdb}: {';'.join(lig2discard)}")
+            # save cleaned file
             protein_pdb.to_pdb(path=f"{prot_dir}/pdbs_filtered_chains/{prot}/{pdb}_keychain{'-'.join(chainset)}.pdb", records=None, gz=False, append_newline=True)
-
+    
+    print("\nALIGNMENT --------------------------")
     rmsd=subprocess.run(f'pymol -cq {HOME}/LigExtract/bin/align_pdbs_pockets.py -- {prot_dir}/pdbs_filtered_chains/{prot}', shell=True, capture_output=True)
     refpdb_align = [x for x in os.listdir(f'{prot_dir}/pdbs_filtered_chains/{prot}') if x.endswith(".pdb")][0]
     if len(pockets_prot.pdbcode.unique())>1:
@@ -333,7 +367,7 @@ for p_i, prot in enumerate(prot_lst):
         rmsd = eval("["+rmsd[rmsd.find("["):].strip().replace("\n",",")+"]")
         print(f"RMSDs from alignment against {refpdb_align}:")
         for i in rmsd:
-        	print("\t",i)
+            print("\t",i)
         bad_align = [x for x in rmsd if x[1]>3.5]
     else:
         rmsd = []
@@ -346,54 +380,50 @@ for p_i, prot in enumerate(prot_lst):
         print(f"Successful alignment of {len(rmsd)+1} structures")
     
     ligand_centroid = []
-    sys.stderr.write("\nBuilding ligand clusters...\n")
-    for pdbalign in os.listdir(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs"):#pockets_prot.pdbcode.unique():
-        print("PROTEIN: ", pdbalign)
-        #bypass = False
-        pdb = pdbalign.split("_")[0]
-        if pdbalign.replace(".pdb","") in bad_align: continue #bypass=True; ; break
-        #if bypass == True:
-        #    continue
-        protein_pdb = PandasPdb().read_pdb(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/{pdbalign}")
-        pdb_ligs = pockets_prot.query(f"pdbcode == '{pdb}'")
-        print(pdb_ligs.ligandfile.values)
-        for lig_pdb in pdb_ligs.ligandfile.values:
-            print(lig_pdb, "-----------------")
-            lig_pdb_file = PandasPdb().read_pdb(f"{lig_dir}/{lig_pdb}")
-            lig_resn = np.hstack([lig_pdb_file.df["ATOM"].residue_number.drop_duplicates().values, lig_pdb_file.df["HETATM"].residue_number.drop_duplicates().values])
-            save_aligned_lig = PandasPdb().read_pdb(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/{pdbalign}")
-            if "_lig-" in lig_pdb:
-                resname = lig_pdb.split("lig-")[1].split(".")[0]
-                chainid = lig_pdb.split("chain-")[1].split("_")[0]
-                atom_coord = protein_pdb.df["HETATM"].query(f"residue_name == '{resname}' and chain_id == '{chainid}' and residue_number == {lig_resn[0]}")
-                atom_coord = atom_coord[['x_coord', 'y_coord', 'z_coord']]
-                save_aligned_lig.df["HETATM"] = save_aligned_lig.df["HETATM"].query(f"residue_name == '{resname}' and chain_id == '{chainid}' and residue_number == {lig_resn[0]}")
-                save_aligned_lig.df["ATOM"] = save_aligned_lig.df["ATOM"].query(f"residue_name == 'NORESIDUES'")
+    #sys.stderr.write("\nBuilding ligand clusters...\n")
+    unique_pdbs_2alignligs = np.unique([x.split("/")[-1].split("_")[0] for x in glob(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/*_align.pdb")])
+    ligs2cluster = pockets_prot[pockets_prot.pdbcode.isin(unique_pdbs_2alignligs)].ligandfile.values
+    for ligfile in ligs2cluster:
+        print(ligfile, "-----------------")
+        pdb = ligfile.split("_")[0]
+        # ref protein with ligands (aligned) - get the corresponding protein for the currently selected ligand
+        pdbsref = glob(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/{pdb}*align.pdb")
+        #if pdb == "8uzz": break
+        for pdbalign in pdbsref:
+            fullPdb = PandasPdb().read_pdb(pdbalign)
             
-            if "lig_chain" in lig_pdb:
-                chainid = lig_pdb.split("_chain-")[1].split(".")[0]
-                atom_coord = protein_pdb.df["ATOM"].query(f"chain_id == '{chainid}'")
-                atom_coord = atom_coord[np.isin(atom_coord.residue_number, lig_resn)]
-                atom_coord = atom_coord[['x_coord', 'y_coord', 'z_coord']]
-                save_aligned_lig.df["ATOM"] = save_aligned_lig.df["ATOM"].query(f"chain_id == '{chainid}'")
-                save_aligned_lig.df["ATOM"] = save_aligned_lig.df["ATOM"][np.isin(save_aligned_lig.df["ATOM"].residue_number,lig_resn)]
-                
-                hetatom_coord = protein_pdb.df["HETATM"].query(f"chain_id == '{chainid}'")
-                hetatom_coord = hetatom_coord[np.isin(hetatom_coord.residue_number, lig_resn)]
-                hetatom_coord = hetatom_coord[['x_coord', 'y_coord', 'z_coord']]
-                atom_coord = pd.concat([hetatom_coord,atom_coord])
-                save_aligned_lig.df["HETATM"] = save_aligned_lig.df["HETATM"].query(f"chain_id == '{chainid}'")
-                save_aligned_lig.df["HETATM"] = save_aligned_lig.df["HETATM"][np.isin(save_aligned_lig.df["HETATM"].residue_number,lig_resn)]
+            # original ligand (not aligned)
+            lig_pdb_file = PandasPdb().read_pdb(f"{lig_dir}/{ligfile}")
             
-            liglines = save_aligned_lig.df["HETATM"].shape[0]+save_aligned_lig.df["ATOM"].shape[0]
-            if liglines == 0:
-                continue
-            newligname = lig_pdb.replace('.pdb','_aligned_LIG.pdb')
-            # if we are considering different sets of chains, we must avoid overwriting a previous ligand file with the same name
-            if newligname in os.listdir(f'{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/'):
-                newligname = newligname.replace("_aligned_", "_1_aligned_")
-            save_aligned_lig.to_pdb(path=f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/{newligname}", records=None, gz=False, append_newline=True)
-            centroid = atom_coord.mean().values.round(3)
+            # get atoms to extract from the original ligand
+            lig_lines2keep_het = lig_pdb_file.df["HETATM"].sort_values(by='occupancy', ascending=False).drop_duplicates(subset=["atom_name", "residue_name", "chain_id", "residue_number"]).sort_values("atom_number") # keep first alt_loc
+            lig_lines2keep_atm = lig_pdb_file.df["ATOM"].sort_values(by='occupancy', ascending=False).drop_duplicates(subset=["atom_name", "residue_name", "chain_id", "residue_number"]).sort_values("atom_number")
+            lig_lines2keep_het = lig_lines2keep_het[["atom_name", "alt_loc", "residue_name", "chain_id", "residue_number"]].values
+            lig_lines2keep_atm = lig_lines2keep_atm[["atom_name", "alt_loc", "residue_name", "chain_id", "residue_number"]].values
+
+            #if pdb == "8uv1": print(asfdhasfdh)
+            #lig_atomnum2keep = np.hstack([lig_atomnum2keep_het, lig_atomnum2keep_atm])
+            # save atoms from the aligned full protein file
+            filtered_lig_het = [fullPdb.df["HETATM"].query(f'atom_name=="{ln[0]}" and alt_loc=="{ln[1]}" and residue_name=="{ln[2]}" and chain_id=="{ln[3]}" and residue_number=={ln[4]}') for ln in lig_lines2keep_het]
+            filtered_lig_atm = [fullPdb.df["ATOM"].query(f'atom_name=="{ln[0]}" and alt_loc=="{ln[1]}" and residue_name=="{ln[2]}" and chain_id=="{ln[3]}" and residue_number=={ln[4]}') for ln in lig_lines2keep_atm]
+    
+            if len(filtered_lig_het)==0:
+                fullPdb.df["HETATM"] = fullPdb.df["HETATM"].query("atom_name=='NOTHING'")
+            else:
+                filtered_lig_het = pd.concat(filtered_lig_het)
+                if len(lig_lines2keep_het) != len(filtered_lig_het): continue # it is not getting the lines from correct reference pdb
+                fullPdb.df["HETATM"] = filtered_lig_het
+            
+            if len(filtered_lig_atm)==0:
+                fullPdb.df["ATOM"] = fullPdb.df["ATOM"].query("atom_name=='NOTHING'")
+            else:
+                filtered_lig_atm = pd.concat(filtered_lig_atm)
+                if len(lig_lines2keep_atm) != len(filtered_lig_atm): continue # it is not getting the lines from correct reference pdb
+                fullPdb.df["ATOM"] = filtered_lig_atm
+            #liglines = save_aligned_lig.df["HETATM"].shape[0]+save_aligned_lig.df["ATOM"].shape[0]
+            newligname = ligfile.replace('.pdb','_aligned_LIG.pdb')
+            fullPdb.to_pdb(path=f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/{newligname}", records=['ATOM', 'HETATM'], gz=False, append_newline=True)
+            centroid = pd.concat([fullPdb.df["HETATM"], fullPdb.df["ATOM"]])[["x_coord", "y_coord","z_coord"]].mean().values.round(3)
             print(newligname, centroid)
             ligand_centroid.append(np.hstack([newligname, centroid]))
     
@@ -404,13 +434,13 @@ for p_i, prot in enumerate(prot_lst):
         ligand_centroid.to_csv("inspect_ligand_centroids.txt", sep="\t", index=False)
     centroids_coords = ligand_centroid[[1,2,3]].astype(float)#.round(3)
     if len(centroids_coords) > 1:
-        clustering = AgglomerativeClustering(n_clusters=None, distance_threshold=10).fit(centroids_coords)
+        clustering = AgglomerativeClustering(n_clusters=None, distance_threshold=10, linkage="single").fit(centroids_coords)
         cluster_classes = clustering.labels_
         clust_ec = {cl:max([round(euclidean(i,j),3) for i,j in combinations(centroids_coords[cluster_classes==cl].values,2)]) if sum(cluster_classes==cl)>1 else 0 for cl in np.unique(cluster_classes)}
     else:
         cluster_classes = np.array([0])
         clust_ec = {0:0}
-    sys.stderr.write(f"--- {len(np.unique(cluster_classes))} different clusters were found.\n\n")
+    #sys.stderr.write(f"--- {len(np.unique(cluster_classes))} different clusters were found.\n\n")
     print(f"--- {len(np.unique(cluster_classes))} different clusters were found")
     
     ligand_centroid.columns = ["ligandfile","centroidX","centroidY", "centroidZ"]
@@ -426,14 +456,29 @@ for p_i, prot in enumerate(prot_lst):
     ligand_centroid_sorted.to_csv(f"{prot}_pockets_hierarch-clusters.txt", sep="\t", index=False)
     
     # Produce images for clustered pockets
-    for c in ligand_centroid_sorted.cluster.unique():
-        pocket_ligs = ligand_centroid_sorted.query(f"cluster == '{c}'").ligandfile.values
-        pocket_ligs = " ".join(pocket_ligs)
-        subprocess.run(f"pymol -cq {HOME}/LigExtract/bin/align_ligs_figures.py -- pocketcluster{c} {prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs {pocket_ligs}", shell=True, capture_output=True)
+    #for c in ligand_centroid_sorted.cluster.unique():
+    #    pocket_ligs = ligand_centroid_sorted.query(f"cluster == '{c}'").ligandfile.values
+    #    pocket_ligs = " ".join(pocket_ligs)
+    #    subprocess.run(f"pymol -cq {HOME}/LigExtract/bin/align_ligs_figures.py -- pocketcluster{c} {prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs {pocket_ligs}", shell=True, capture_output=True)
     
-    sys.stderr.write(f"Clustered pockets have been stored in {prot}_pockets_hierarch-clusters.txt. Pictures of the different pocket clusters created in {prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs")
+    #sys.stderr.write(f"Clustered pockets have been stored in {prot}_pockets_hierarch-clusters.txt. Pictures of the different pocket clusters created in {prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs")
     
-    # Produce one global image where each pocket has a color
+    # Produce one global PyMOL session where each cluster has a color
     subprocess.run(f"pymol -cq {HOME}/LigExtract/bin/allpockets_figure.py -- {prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs {prot}_pockets_hierarch-clusters.txt", shell=True, capture_output=True)
+    return(prot)
+
+
+# multithreading
+num_workers = os.cpu_count()-1
+
+with ProcessPoolExecutor(max_workers=num_workers) as executor: #num_workers
+    #executor.map(extractorSplit, pdbs)
+    futures = [executor.submit(clusteringSplit, protein, pi) for pi,protein in enumerate(prot_lst)]
+    barthread = Bar('Aligning chains and Clustering ligands... ', max=len(futures))
+    results = []
+    for f in as_completed(futures):
+        results.append(f.result())
+        barthread.next()
+    barthread.finish()
 
 sys.stderr.write(f"\n\nFinished Clustering pockets.\n\n")

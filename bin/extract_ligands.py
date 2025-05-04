@@ -447,14 +447,16 @@ def extractorSplit(pdbname):
                 logfile.write(f"{cpd}   ligand detected. {message}\n")
             
             lig = PandasPdb().read_pdb(f'{originpath}/{pdbname}')
-            chains_lig = lig.df["HETATM"][lig.df["HETATM"].residue_name==cpd].chain_id.unique()
-            for chain in chains_lig:
+            lig_instances = lig.df["HETATM"].query(f"residue_name=='{cpd}'")[["residue_name", "residue_number", "chain_id"]].drop_duplicates()
+            #since this compound is a isolated entity, there should be no case where it is a multi-residue compound.
+            # separate multiple residues
+            for resname, resx, chain in lig_instances.values:
                 lig = PandasPdb().read_pdb(f'{originpath}/{pdbname}')
-                lig.df["HETATM"] = lig.df["HETATM"].query(f'residue_name=="{cpd}" and chain_id=="{chain}"')
-                lig.df["ATOM"] = lig.df["ATOM"].query(f'residue_name=="NOTHING" and chain_id=="{chain}"')
-                lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_chain-{chain}_lig-{cpd}.pdb', records=['ATOM', 'HETATM', "OTHERS"], 
+                lig.df["HETATM"] = lig.df["HETATM"].query(f'residue_name=="{cpd}" and chain_id=="{chain}" and residue_number=={resx}')
+                lig.df["ATOM"] = lig.df["ATOM"].query(f'residue_name=="NOTHING"') # should not exist here
+                lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_chain-{chain}_lig-{cpd}{resx}.pdb', records=['ATOM', 'HETATM', "OTHERS"], 
                                 gz=False, append_newline=True)
-                print(f'{pdbname.split(".")[0]}_chain-{chain}_lig-{cpd}')
+                print(f'{pdbname.split(".")[0]}_chain-{chain}_lig-{cpd}{resx}') #cases like 8uv1 ligands will start replacing each other.
 
 
     # compare all ligands in cmpds, if links is empty. Rebuilding from links will happen in next module
@@ -466,7 +468,8 @@ def extractorSplit(pdbname):
         G = nx.Graph()
         G.add_nodes_from(lig_files)
         for f1, f2 in combinations(lig_files, 2):
-            if detectBoundLigands(f1, f2) <= 1.7:
+            mindist = detectBoundLigands(f1, f2)
+            if mindist <= 1.7 and mindist>0.1: # avoid merging alternate states of the ligand (i.e. isomers in 1RGT for example)
                 G.add_edge(f1, f2)
 
         # Find connected components

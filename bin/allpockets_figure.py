@@ -21,25 +21,20 @@ for color_i,cluster in enumerate(unique_pockets):
 	for l in cluster_ligs:
 		cmd.load(workdir+"/"+l, l.split(".")[0])
 		cmd.do("color {}, {}".format(color_lst[color_i], l.split(".")[0]))
+	# group clusters in PyMOL
+	ligs2group=" ".join([l.split(".")[0] for l in cluster_ligs])
+	cmd.do("group cluster{}, {}".format(cluster,ligs2group))
 	outfile.write("{}\t{}\n".format(color_lst[color_i],cluster))
 
 outfile.close()
 
-# As-is view
+# PyMOL session
 cmd.show("sticks")
 cmd.center()
 #cmd.zoom(complete=1)
 cmd.do("zoom all, 1")
-cmd.png("{}/all_pockets_1.png".format(workdir), ray=1, dpi=600)
+cmd.save("{}/all_clusters.pse".format(workdir))
 
 # rotate 45* right
-cmd.do("turn x,45")
-cmd.png("{}/all_pockets_2.png".format(workdir), ray=1, dpi=600)
-
-# rotate 45* up
-cmd.do("turn y,45")
-cmd.png("{}/all_pockets_3.png".format(workdir), ray=1, dpi=600)
-
-# rotate 45* up
-cmd.do("turn z,45")
-cmd.png("{}/all_pockets_4.png".format(workdir), ray=1, dpi=300)
+#cmd.do("turn x,45")
+#cmd.png("{}/all_pockets_2.png".format(workdir), ray=1, dpi=600)

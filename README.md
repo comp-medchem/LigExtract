@@ -73,8 +73,8 @@ Cluster mode with clean-up at the end (i.e. removing all *.cif files):
      
 #### Usage Notes:
 
-- LigExtract will prompt the user to manually reject or accept each of all experiment methods used to obtain the PDBs associated with the UniProt queries.
-- LigExtract will bypass entries with no PDB-format file available. Read more on what causes this situation on https://www.rcsb.org/docs/general-help/structures-without-legacy-pdb-format-files. Eventually we plan to accommodate these exceptions but at the moment LigExtract is not capable on handling them.
+- LigExtract will prompt the user to manually reject or accept each of all experiment method used to obtain the PDBs associated with the UniProt queries.
+- LigExtract will replace 5-character ligand codes with a short numerical code (e.g.,A1AIM -> 01) everywhere, through the use of BeEM (mmCIF-to-pdb converter). The user can easily access the original ID in the *-ligand-id-mapping.tsv files for the corresponding PDB, inside cifs.
 
 
 

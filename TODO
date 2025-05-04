@@ -7,3 +7,7 @@ Code maintenance plan:
 - Add functionality to allow for PDB queries
 
 - Add ability to handle structures with too many chains (structure file is split)
+
+- Add protein cleaning (keep track of ligands being removed throughout the workflow, and delete them at the end)
+
+- check ION detection
