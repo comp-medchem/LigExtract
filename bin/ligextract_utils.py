@@ -109,15 +109,15 @@ def findAllLinks(residues_lst, restypes, links_table):
     if len(residues_lst) == 0:
         return([])
     if len(links_table) == 0:
-        return([int(x.strip()[5:]) for x in residues_lst])
-    res_chain_q = np.unique([x[4] for x in residues_lst])
+        return([x for x in residues_lst])
+    res_chain_q = np.unique([x.split("-")[1] for x in residues_lst]) # order: "residue_name","chain_id","residue_number"
     allLinks = []
     for ch in res_chain_q:
         foundlink = links_table.query(f"ptnr1_auth_asym_id == '{ch}' and ptnr2_auth_asym_id == '{ch}'")
         if len(foundlink) == 0:
             return([])
-        foundlink1 = [" ".join(x) for x in foundlink[['ptnr1_auth_comp_id', 'ptnr1_auth_asym_id', 'ptnr1_auth_seq_id']].values]
-        foundlink2 = [" ".join(x) for x in foundlink[['ptnr2_auth_comp_id', 'ptnr2_auth_asym_id', 'ptnr2_auth_seq_id']].values]
+        foundlink1 = ["-".join(x) for x in foundlink[['ptnr1_auth_comp_id', 'ptnr1_auth_asym_id', 'ptnr1_auth_seq_id']].values]
+        foundlink2 = ["-".join(x) for x in foundlink[['ptnr2_auth_comp_id', 'ptnr2_auth_asym_id', 'ptnr2_auth_seq_id']].values]
         foundlink = np.vstack(list(zip(foundlink1, foundlink2)))
         allLinks.append(list(foundlink))
     allLinks_ids = np.vstack(allLinks)
@@ -129,26 +129,20 @@ def findAllLinks(residues_lst, restypes, links_table):
         # means there is no connections to be made as there is only one HETATM residue in this chain
         return([])
     if restypes == "HETATM" and len(residues_lst)>1:
-        all_connect = [int(x.split()[-1]) for x in list(G.nodes)]
+        all_connect = [x for x in list(G.nodes)]
         return(all_connect)
     if restypes == "ATOM" and len(residues_lst)>1: 
-        prot_link = [" ".join([x[0:3].strip(),x[3:5].strip(), x[5:].strip()]) for x in residues_lst]
-        prot_link = zip(prot_link[:-1],prot_link[1:])
+        prot_link = copy(residues_lst)
+        prot_link = zip(prot_link[:-1],prot_link[1:]) # pair all res to res+1
         prot_link_ids=[(x,y) for x,y in prot_link]
         G.add_edges_from(prot_link_ids)
     else: prot_link_ids=["0x0"]
-    catch_neigh = residues_lst[:]
-    expand=True
-    while expand == True:
-        catch_neigh_mod = [" ".join([x[0:3].strip(),x[3:5].strip(), x[5:].strip()]) for x in catch_neigh]
-        new_neigh = np.unique(np.hstack([list(G.neighbors(x)) for x in catch_neigh_mod]))
-        new_neigh = np.setdiff1d(new_neigh,catch_neigh)
-        if len(new_neigh) > 0:
-            catch_neigh = np.hstack([catch_neigh_mod,new_neigh])
-        else:
-            expand=False
-    catch_neigh = [int(x.split()[-1]) for x in catch_neigh]
-    return(list(np.unique(catch_neigh)))
+    groups = nx.connected_components(G)
+    all_groups_found =[]
+    for group in groups:
+        all_groups_found.append(sorted(group, key=lambda x: int(x.split('-')[-1])))
+    largest_group=max(all_groups_found, key=lambda df: len(df))
+    return([str(x) for x in largest_group]) #ABC-A-23
 
 
 

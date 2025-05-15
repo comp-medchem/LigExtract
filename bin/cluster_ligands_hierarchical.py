@@ -55,6 +55,8 @@ oligos_file.write("         it would simply remove that supposed ligand (correct
 
 pdbs_in_pockets = pockets.pdbcode.drop_duplicates()
 
+prd2pdb_data = pd.read_csv(f"{HOME}/LigExtract/data/prd_to_pdb_IDs.txt", sep="\t")
+
 save_clean_pockets_list = []
 
 bar = Bar('Filtering ligands in each PDB... ', max=len(pdbs_in_pockets))
@@ -67,51 +69,31 @@ for pdb in pdbs_in_pockets:
     if len(glob(f'{lig_dir}/{pdb}_*.pdb'))==0:
         print("There are no ligands to consider.")
         continue
+
     # Remove ligands that are oligosacharides
-    cif_f = open(f"cifs/{pdb}.cif").read()
-    if "_pdbx_entity_branch_list" in cif_f: 
-        cmpd_where = np.argwhere([".comp_id" in x for x in cif_f.split("\n") if x.startswith("_pdbx_entity_branch_list.")]).flatten()[0]
-        oligos = cif_f.split("_pdbx_entity_branch_list.hetero \n")[1].split("#")[0]
-        oligos = [x for x in oligos.split("\n")[:-1]]
-        oligos = np.unique([shlex.split(x)[cmpd_where] for x in oligos])
+    cifdata = CifFileReader().read(f"cifs/{pdb}.cif")
+    data = cifdata[pdb.upper()]
+    if "_pdbx_entity_branch_list" in data:
+        data = pd.DataFrame.from_dict(data["_pdbx_entity_branch_list"], orient="index").T
+        oligos = data.comp_id.unique()
         if len(oligos)>0: 
             o='\t'.join(oligos)
             oligos_file.write(f"{pdb}\t{o}\n")
     else: oligos = []
     
     
-    if "_struct_conn.pdbx_role" in cif_f:
-        block = [x for x in cif_f.split("# \n") if "_struct_conn." in x and x.split("\n")[1].startswith("_struct_conn.")][0].split("\n")[:-1]
-        if block[0]=="loop_":
-            headers = [x.replace("_struct_conn.","").strip() for x in block if x.startswith("_struct_conn")]
-            body = [x for x in block[1:] if x.startswith("_struct_conn") == False]
-            join_ln = np.argwhere([len(shlex.split(x))<len(headers) for x in body]).flatten()
-            for x in join_ln:
-                # if current line is empty, this is a continuation line: bypass.
-                if len(body[x].split())==0: continue
-                body[x] = body[x]+body[x+1]
-                body[x+1]=""
-            body = [shlex.split(x) for x in body if "Glycosylation" in x]
-            glycosylation_het = pd.DataFrame(body, columns=headers)
-            add_oligos = glycosylation_het[["ptnr1_label_comp_id","ptnr2_label_comp_id"]].values.flatten() # "pdbx_role"
-        else:
-            glycosylation_het = np.array([x.strip().split() for x in block])
-            glycosylation_het = pd.DataFrame(glycosylation_het[:,1].reshape(1,-1), columns = [x.replace("_struct_conn.","") for x in glycosylation_het[:,0]])
-            if "Glycosylation" not in glycosylation_het.pdbx_role.values[0]:
-                add_oligos = []
-            else:
-                add_oligos = glycosylation_het[["ptnr1_label_comp_id","ptnr2_label_comp_id"]].values.flatten()
+    data = cifdata[pdb.upper()]
+    if "_struct_conn" in data:
+        data = pd.DataFrame.from_dict(data["_struct_conn"], orient="index").T
+        data = data[["Glycosylation" in x for x in data.pdbx_role]]
+        add_oligos = np.unique(data[["ptnr1_label_comp_id","ptnr2_label_comp_id"]].values.flatten())
         if len(add_oligos)>0: 
-            # ! some of these will be residues but this will have no impact on the process
-            # since residues will never be a possible individual ligand to begin with.
             o='\t'.join(add_oligos)
             oligos_file.write(f"{pdb}\t{o}\n")
-    
     else: add_oligos = []
     
     oligos = list(oligos) + list(add_oligos)
     
-    del cif_f 
     # get all identified ligs
     logfile = [ln.strip() for ln in open(f"{lig_dir}/{pdb}_ligand_extraction.log").readlines()][5:]
     chain2prdIDs = np.array([[x.split("rebuilt ligand detected in chain ")[1][0],x.split("PRD ID ")[1].split(" ")[0]] for x in logfile if "associated with PRD ID" in x])
@@ -169,8 +151,7 @@ for pdb in pdbs_in_pockets:
     
     if has_rebuilt_lig == True:
         # cross ref with PRDs
-        prd2pdb = pd.read_csv(f"{HOME}/LigExtract/data/prd_to_pdb_IDs.txt", sep="\t")
-        prd2pdb = prd2pdb.query(f"pdb == '{pdb}'").prd_ID.drop_duplicates().values
+        prd2pdb = prd2pdb_data.query(f"pdb == '{pdb}'").prd_ID.drop_duplicates().values
         rebuilt_ligs = [x for x in os.listdir(lig_dir) if pdb in x and "lig_chain-" in x]
         if len(prd2pdb)==0:
             print(f"There are {len(rebuilt_ligs)} outstanding ligands with no further annotation in BIRD.")
@@ -178,64 +159,46 @@ for pdb in pdbs_in_pockets:
             found_match = None
         else:
             print("Searching for matches in BIRD...")
-            # try to use what was gathered first
-            if len(chain2prdIDs)>0: lig2search_bird = [x for x in rebuilt_ligs if x.split("chain-")[1].split(".")[0] not in chain2prdIDs[:,0]]
-            else: lig2search_bird = []
-            # save the already found macthes from the log
-            if len(chain2prdIDs)>0: ligfound_bird = [[x,x.split("chain-")[1].split(".")[0]] for x in rebuilt_ligs if x.split("chain-")[1].split(".")[0] in chain2prdIDs[:,0]]
-            else: ligfound_bird = []
+            # METHOD 1: DIRECT MAPPING
+            data = cifdata[pdb.upper()]
+            prd_map = copy(rebuilt_ligs)
+            if "_pdbx_molecule" in data:
+                data = pd.DataFrame.from_dict(data["_pdbx_molecule"], orient="index").T
+                for l in rebuilt_ligs:
+                    l_chain = l.split("lig_chain-")[-1].split(".")[0]
+                    rebuilt_ligs_PRD = data.query(f"asym_id == '{l_chain}'")
+                    if len(rebuilt_ligs_PRD)> 0:
+                        rebuilt_ligs_PRD = rebuilt_ligs_PRD.prd_id.values[0]
+                        prd_map.remove(l)
+                        print(f"ligand  {l}  is annotated in BIRD under {rebuilt_ligs_PRD}  ; This is likely a ligand of focus in this PDB entry.")
             
-            for l,ch in ligfound_bird:
-                p = chain2prdIDs[chain2prdIDs[:,0]==ch][:,1][0]
-                print(f"ligand  {l}  is annotated in BIRD under {p}  (full sequence match). This is likely the ligand of focus in this PDB entry.")
-                
             
-            if len(lig2search_bird)>0:
+            # METHOD 2: INDIRECT MAPPING through sequence
+            if len(prd_map)>0: # still chain ligands to be mapped
                 print("searching ligands that weren't found in ligand extraction...")
-                prd_block = []
-                titles = []
-                c = 0
-                with open(cif_file) as prd:
-                    for line in prd:
-                        if line.startswith("data_PRD_"):
-                            prd_block.append(c)
-                            titles.append(line.strip().replace("data_",""))
-                        c +=1
+                prd =  CifFileReader().read(cif_file)
                 
-                prd_block = np.array(list(zip(prd_block,prd_block[1:]+[c])))
-                get_blocks = prd_block[np.isin(titles, prd2pdb)]
-                
-                seq_list = []
-                for blockStart,blockStop in get_blocks:
-                    block = [linecache.getline(cif_file,x) for x in range(blockStart, blockStop)]
-                    obs_seq = "".join(block).split('_pdbx_reference_entity_poly_seq.observed \n')[1].split("# \n")[0]
-                    obs_seq = [x.split() for x in obs_seq.split("\n")]
-                    obs_seq = pd.DataFrame(obs_seq[0:-1])
-                    headers = "".join(block).split("loop_\n_pdbx_reference_entity_poly_seq.")[1].split(".observed \n")[0] + ".observed"
-                    headers = headers.replace("_pdbx_reference_entity_poly_seq.","").split(" \n")
-                    obs_seq.columns = headers
-                    full_seq = obs_seq.mon_id.values
-                    exp_seq = obs_seq.query("observed == 'Y'").mon_id.values
-                    name = obs_seq.prd_id.drop_duplicates().values[0]
-                    seq_list.append([name," ".join(full_seq), " ".join(exp_seq)])
-                
-                pdbseqs = [ln.strip() for ln in open(f'{prot_dir}/{pdb}.pdb').readlines() if ln.startswith("SEQRES ")]
                 found_match = []
                 for lig in rebuilt_ligs:
-                    lig_chain = lig.split("lig_chain-")[1].split(".")[0]
-                    lig_seq_match = []
-                    for seq in pdbseqs:
-                        if lig_chain in seq[0:13]:
-                            lig_seq_match.append(" ".join(seq[12:].split()[1:]))
-                    lig_seq_match = " ".join(lig_seq_match)
-                    for prd_seq in seq_list:
-                        if lig_seq_match == prd_seq[1]:
-                            found_match.append([lig,prd_seq[0]])
+                    lig_structure = PandasPdb().read_pdb(f"{lig_dir}/{lig}").df
+                    lig_seq = " ".join(lig_structure["ATOM"].residue_name.drop_duplicates())
+                    lig_seq = pd.concat([lig_structure["ATOM"][["residue_number", "residue_name"]], lig_structure["HETATM"][["residue_number", "residue_name"]]]).drop_duplicates().sort_values("residue_number")
+                    lig_seq = " ".join(lig_seq.residue_name)
+                    
+                    for prd_id in prd:
+                        if "_pdbx_reference_entity_poly_seq" in prd[prd_id]:
+                            obs_seq = pd.DataFrame.from_dict(prd[prd_id]["_pdbx_reference_entity_poly_seq"], orient="index").T
+                            full_seq = " ".join(obs_seq.mon_id.values)
+                            exp_seq = " ".join(obs_seq.query("observed == 'Y'").mon_id.values)
+                            if lig_seq == full_seq or lig_seq == exp_seq:
+                                # found a seq-based match
+                                found_match.append([lig,exp_seq, prd_id])
+                                break 
                 
                 if len(found_match) == 0: print("None of the rebuilt-chain ligands are in BIRD.")
                 else: 
                     for ln in found_match: 
-                        print(f"ligand  {ln[0]}  is annotated in BIRD under {ln[1]}  (full sequence match). This is likely the ligand of focus in this PDB entry.")
+                        print(f"ligand  {ln[0]}  is annotated in BIRD under {ln[1]}  (full sequence match to {ln[2]}). This is likely the ligand of focus in this PDB entry.")
                         
     
     

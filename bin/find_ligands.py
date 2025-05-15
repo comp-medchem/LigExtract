@@ -80,11 +80,11 @@ sifts_pdb2uniprot = sifts_pdb2uniprot[[x.startswith("NOR")==False for x in sifts
 
 ## Removing x-ray additives and other solutes
 print("removing x-ray additives and other solutes listed in generic_solute_ligands.txt...")
-blacklisted = [ln.strip() for ln in open(f"{HOME}/LigExtract/docs/generic_solute_ligands.txt").readlines()]
+exclusionligs = [ln.strip() for ln in open(f"{HOME}/LigExtract/docs/generic_solute_ligands.txt").readlines()]
 
 rm_trash = []
-for blacklist in blacklisted:
-    for f in glob(f'{ligands_dir}/*_lig-{blacklist}.*'): os.remove(f); rm_trash.append(f)
+for exclud in exclusionligs:
+    for f in glob(f'{ligands_dir}/*_lig-{exclud}-*'): os.remove(f); rm_trash.append(f)
 
 
 print("\n".join([", ".join(rm_trash[i:i+5]) for i in range(0, len(rm_trash), 5)]))
@@ -197,7 +197,7 @@ for proteinfile in list_proteins:
             ions = np.array([])
     
     for ion in ions:
-        for ionfile in glob(f'{ligands_dir}/{pdbcode}_*_lig-{ion}.*'): 
+        for ionfile in glob(f'{ligands_dir}/{pdbcode}_*_lig-{ion}-*'): 
             os.remove(ionfile) 
             print(f"remove {ion} ions by detecting the word ION in the _chem_comp section")
     

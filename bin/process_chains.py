@@ -67,7 +67,7 @@ with gzip.open(f"{home}/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
 
 new_uniprots = pd.DataFrame(new_uniprots, columns = ["pdbs", "chainName", "uniprot"])
 new_uniprots = new_uniprots[[x.startswith("NOR")==False for x in new_uniprots.uniprot.values]]
-
+new_uniprots = new_uniprots.drop_duplicates()
 
 # In some instances the pdb has no Uniprot chains annotated - 5fv8
 old2new_lst = []
@@ -75,6 +75,7 @@ chains2solve = []
 for pdb, ch in testprotein_lst[["pdbx_PDB_id_code", "pdbx_strand_id"]].drop_duplicates().values:
     #if unip.startswith("NOR"): continue
     res = new_uniprots.query(f"pdbs == '{pdb}' and chainName == '{ch}'").uniprot.values
+    if len(res)==0: continue
     #res = [x for x in res if x.startswith("NOR")==False]
     q = testprotein_lst.query(f"pdbx_PDB_id_code == '{pdb}' and pdbx_strand_id == '{ch}'").pdbx_db_accession.values
     if len(res)>1 and len(q) == len(res):

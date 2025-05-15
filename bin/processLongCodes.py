@@ -9,9 +9,14 @@
 from glob import glob
 from biopandas.pdb import PandasPdb
 import pandas as pd
+import os
 
 for pdb_convert in glob("cifs/*ligand-id-mapping.tsv"):
     pdb = pdb_convert.split("-")[0].split("/")[1]
+    #check that there are no idmapping-to-pdb mismatch
+    if len(glob(f"cifs/{pdb}.cif"))==0: 
+        os.remove(f"cifs/{pdb}-ligand-id-mapping.tsv")
+        continue
     
     # get name conversions
     
