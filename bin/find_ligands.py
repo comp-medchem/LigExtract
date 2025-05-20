@@ -97,15 +97,12 @@ for f in glob(f'{ligands_dir}/*_lig_chain-*.pdb'):
     bar1.next()
     if "_lig_chain-h" in f: continue #bypass ligands that have been assembled based on distance in the previous module
     original_lig = PandasPdb().read_pdb(f)
-    cleaned_lig = subprocess.run(f"obabel -i pdb {f} -r -o pdb", shell=True, capture_output=True)
-    # spacing according to obabel output
-    cleaned_lig_atom = [int(x[22:26].strip()) for x in cleaned_lig.stdout.decode("utf-8").split("\n") if x.startswith("ATOM")]
-    cleaned_lig_het = [int(x[22:26].strip()) for x in cleaned_lig.stdout.decode("utf-8").split("\n") if x.startswith("HETATM")]
-    removed_res_solvent_het = original_lig.df['HETATM'][~np.isin(original_lig.df['HETATM'].residue_number, cleaned_lig_het)][["residue_name", "residue_number"]]
-    removed_res_solvent_atom = original_lig.df['ATOM'][~np.isin(original_lig.df['ATOM'].residue_number, cleaned_lig_atom)][["residue_name", "residue_number"]]
-    removed_solvent_res.append(np.hstack([removed_res_solvent_het.residue_name.unique(), removed_res_solvent_atom.residue_name.unique()]))
-    original_lig.df['ATOM'] = original_lig.df['ATOM'][np.isin(original_lig.df['ATOM'].residue_number, cleaned_lig_atom)]
-    original_lig.df['HETATM'] = original_lig.df['HETATM'][np.isin(original_lig.df['HETATM'].residue_number, cleaned_lig_het)]
+    #cleaned_lig = subprocess.run(f"obabel -i pdb {f} -r -o pdb", shell=True, capture_output=True)
+    resname_counts = original_lig.df["HETATM"].drop_duplicates(["residue_name", "residue_number"]).value_counts("residue_name").to_frame()
+    cleaned_lig_het = resname_counts.query("count <= 3").index
+    removed_res_solvent_het = original_lig.df['HETATM'][~np.isin(original_lig.df['HETATM'].residue_name, cleaned_lig_het)][["residue_name", "residue_number"]]
+    removed_solvent_res.append(removed_res_solvent_het.residue_name.unique())
+    original_lig.df['HETATM'] = original_lig.df['HETATM'][np.isin(original_lig.df['HETATM'].residue_name, cleaned_lig_het)]
     original_lig.to_pdb(path=f, records=None, gz=False, append_newline=True) 
 
 bar1.finish()
