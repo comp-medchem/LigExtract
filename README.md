@@ -7,6 +7,9 @@ Software that allows large-scale ligand extraction from UniProt ID queries.
 
 Developed by **Natália Aniceto** (ORCID 0000-0001-7039-0022), **Nuno Martinho** (ORCID 0000-0001-5102-4756) and **Rita Guedes** (ORCID 0000-0002-5790-9181).
 
+The original publication describing this tool in depth, including performance benchmarks, is [here](https://academic.oup.com/gpb/advance-article/doi/10.1093/gpbjnl/qzaf018/8046017)
+
+
 Below is the overall workflow of LigExtract:
 
 
@@ -74,7 +77,9 @@ ligandfile | pocketres_chain | pocketres_chain_size | chain_name | ligtype | lig
 
 In the example shown above, structure [1SB1](https://www.rcsb.org/structure/1SB1) has two ligands: one peptide ligand annotated under chain I, and a small-molecule ligand with ID 165 (and residue number 1001). Both ligands are bound to chain H.
 
-Another output produced by LigExtract is a set of identified ligands and their corresponding cleaned proteins under projectname/pdbs_filtered_chains/uniprotQuery/aligned_pdbs. Here, projectname corresponds to the name you provided earlier, and uniprotQuery will correspond to each query in your input file. All structures inside a given uniprot query are aligned and saved separately (ligands and proteins in their own individual files). The unaligned complexes are also saved one level up, in projectname/pdbs_filtered_chains/uniprotQuery.
+Another output produced by LigExtract is a set of identified ligands and their corresponding cleaned proteins under projectname/pdbs_filtered_chains/uniprotQuery/aligned_pdbs. Here, projectname corresponds to the name you provided earlier, and uniprotQuery will correspond to each query in your input file. In this directory, a pymol session is also saved with all ligands clustered (each cluster has a color and a code registered in the clusters directory).
+
+All structures inside a given uniprot query are aligned and saved separately (ligands and proteins in their own individual files). The unaligned complexes are also saved one level up, in projectname/pdbs_filtered_chains/uniprotQuery.
 
 
 

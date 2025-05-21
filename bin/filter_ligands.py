@@ -256,6 +256,7 @@ for pdb in pdbs_in_pockets:#["3ilr"]:#
                     name = obs_seq.prd_id.drop_duplicates().values[0]
                     seq_list.append([name," ".join(full_seq), " ".join(exp_seq)])
 
+                #deprecated SEQRES
                 pdbseqs = [ln.strip() for ln in open(f'{prot_dir}/{pdb}.pdb').readlines() if ln.startswith("SEQRES ")]
                 found_match = []
                 for lig in rebuilt_ligs:
@@ -373,11 +374,6 @@ for pdb in pdbs_in_pockets:#["3ilr"]:#
             mol_samechain = np.vstack([[[k,i+1] for k in ln.split(", ")] for i,ln in enumerate(mol_samechain)] )
             mol_samechain = {k:i for k,i in mol_samechain}
             chain_pockets.loc[:,"same_molid"] = [mol_samechain[ch[-1]] if ch[-1] in mol_samechain else ch for ch in chain_pockets["lig_ID"].values ]
-            # drop molecules with same MOL_ID
-            #print(save_clean_pockets.columns)
-            #print(save_clean_pockets)
-            #print(chain_pockets.columns)
-            #print(chain_pockets.columns)
             chain_pockets = chain_pockets.sort_values("pocketres_chain_size", ascending=False).drop_duplicates("same_molid")
             rep_lig = [x for x in save_clean_pockets.ligandfile.values if "lig_chain-" in x and x not in chain_pockets.ligandfile.values]
             save_clean_pockets = save_clean_pockets[~np.isin(save_clean_pockets.ligandfile, rep_lig)]

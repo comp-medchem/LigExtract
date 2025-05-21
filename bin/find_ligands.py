@@ -126,7 +126,6 @@ pockets = []
 
 
 for proteinfile in list_proteins:
-    print(proteinfile)
     processbar.next()
     if proteinfile.endswith(".pdb") == False:
         continue
