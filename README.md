@@ -49,9 +49,7 @@ This file will contain a list of UniProt IDs (see example in docs)
 Alternatively use the *filter* mode when you want a list of deduplicated ligands:
 
         ligextract.sh -d myproteins -r 2.5 -o filter -c no
-	
 
-#### Alternative commands
 
 Cluster mode with clean-up at the end (i.e. removing all *.cif files):
 
@@ -60,6 +58,20 @@ Cluster mode with clean-up at the end (i.e. removing all *.cif files):
   In this example, ligextract will only consider PDBs up to 2.5 Angstrom resolution and will employ the "cluster" mode (i.e., all ligands that survive filtration are kept, even if duplicated)
   
   Notice how "myproteins" is the name provided to the -d argument, as this must correspond to the prefix of the *_uniprot_list.txt file.
+  
+
+## Outputs
+
+#### Cluster mode:
+
+Ligextract produces a table called **<projectname>_ligandClusters.txt**
+
+ligandfile | pocketres_chain | pocketres_chain_size | chain_name | ligtype | lig_ID | pdbcode 
+--- | --- | --- | --- | --- | --- | --- 
+1sb1_lig_chain-I.pdb | ARG67-H;(...);TYR76-H | 18 | H | chain ligand | 1sb1_lig_chain-I | 1sb1 
+
+
+#### Alternative commands
   
 
 #### Arguments of ligextract.sh:
