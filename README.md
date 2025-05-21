@@ -69,7 +69,6 @@ Ligextract produces a table called <projectname>_ligandClusters.txt with all lig
 ligandfile | pocketres_chain | pocketres_chain_size | chain_name | ligtype | lig_ID | pdbcode 
 --- | --- | --- | --- | --- | --- | --- 
 1sb1_lig_chain-I.pdb | ARG67-H;(...);TYR76-H | 18 | H | chain ligand | 1sb1_lig_chain-I | 1sb1 
---- | --- | --- | --- | --- | --- | --- 
 1sb1_chain-H_lig-165-1001.pdb | ALA190-H;(...);VAL213-H | 30 | H | small-molecule ligand | 165-1001 | 1sb1
 
 
