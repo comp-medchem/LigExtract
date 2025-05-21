@@ -64,14 +64,22 @@ Cluster mode with clean-up at the end (i.e. removing all *.cif files):
 
 #### Cluster mode:
 
-Ligextract produces a table called **<projectname>_ligandClusters.txt**
+Ligextract produces a table called <projectname>_ligandClusters.txt with all ligands and some data characterising them, looking like this:
 
 ligandfile | pocketres_chain | pocketres_chain_size | chain_name | ligtype | lig_ID | pdbcode 
 --- | --- | --- | --- | --- | --- | --- 
 1sb1_lig_chain-I.pdb | ARG67-H;(...);TYR76-H | 18 | H | chain ligand | 1sb1_lig_chain-I | 1sb1 
+--- | --- | --- | --- | --- | --- | --- 
+1sb1_chain-H_lig-165-1001.pdb | ALA190-H;(...);VAL213-H | 30 | H | small-molecule ligand | 165-1001 | 1sb1
 
 
-#### Alternative commands
+In the example shown above, structure [1SB1](https://www.rcsb.org/structure/1SB1) has two ligands: one peptide ligand annotated under chain I, and a small-molecule ligand with ID 165 (and residue number 1001). Both ligands are bound to chain H.
+
+Another output produced by LigExtract is a set of identified ligands and their corresponding cleaned proteins under <projectname>/pdbs_filtered_chains/<uniprotQuery>/aligned_pdbs. All structures inside a given uniprot query are aligned and saved separately (ligands and proteins in their own individual files). The unaligned complexes are also saved one level up, in <projectname>/pdbs_filtered_chains/<uniprotQuery>.
+
+
+
+## Additional Information:
   
 
 #### Arguments of ligextract.sh:
