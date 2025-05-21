@@ -185,6 +185,7 @@ for pdb in pdbs_in_pockets:
                     lig_seq = pd.concat([lig_structure["ATOM"][["residue_number", "residue_name"]], lig_structure["HETATM"][["residue_number", "residue_name"]]]).drop_duplicates().sort_values("residue_number")
                     lig_seq = " ".join(lig_seq.residue_name)
                     
+
                     for prd_id in prd:
                         if "_pdbx_reference_entity_poly_seq" in prd[prd_id]:
                             obs_seq = pd.DataFrame.from_dict(prd[prd_id]["_pdbx_reference_entity_poly_seq"], orient="index").T
@@ -418,15 +419,6 @@ def clusteringSplit(prot, p_i):
     ligand_centroid_sorted = pd.concat(ligand_centroid_sorted)
     ligand_centroid_sorted.to_csv(f"{prot}_pockets_hierarch-clusters.txt", sep="\t", index=False)
     
-    # Produce images for clustered pockets
-    #for c in ligand_centroid_sorted.cluster.unique():
-    #    pocket_ligs = ligand_centroid_sorted.query(f"cluster == '{c}'").ligandfile.values
-    #    pocket_ligs = " ".join(pocket_ligs)
-    #    subprocess.run(f"pymol -cq {HOME}/LigExtract/bin/align_ligs_figures.py -- pocketcluster{c} {prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs {pocket_ligs}", shell=True, capture_output=True)
-    
-    #sys.stderr.write(f"Clustered pockets have been stored in {prot}_pockets_hierarch-clusters.txt. Pictures of the different pocket clusters created in {prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs")
-    
-    # Produce one global PyMOL session where each cluster has a color
     subprocess.run(f"pymol -cq {HOME}/LigExtract/bin/allpockets_figure.py -- {prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs {prot}_pockets_hierarch-clusters.txt", shell=True, capture_output=True)
     return(prot)
 

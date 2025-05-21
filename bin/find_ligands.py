@@ -249,53 +249,45 @@ for proteinfile in list_proteins:
                             os.remove(f'{ligands_dir}/{ligandfile}')
                             continue
             except OSError: None # Pdb File cannot be interpreted by RDKit
+        # load ligand
         ligand = PandasPdb().read_pdb(f'{ligands_dir}/{ligandfile}')
-        res_hetatm = ligand.df['HETATM'][["residue_name","chain_id","residue_number"]].drop_duplicates().values
-        res_hetatm =["{:>3}".format(a) + "{:>2}".format(b) + "{:>4}".format(c) for a,b,c in res_hetatm]
-        heav_cnt = (ligand.df["ATOM"].element_symbol!="H").sum() + (ligand.df["HETATM"].element_symbol!="H").sum()
-        res_atom = ligand.df['ATOM'][["residue_name","chain_id","residue_number"]].drop_duplicates().values
-        res_atom =["{:>3}".format(a) + "{:>2}".format(b) + "{:>4}".format(c) for a,b,c in res_atom]
+        #res_hetatm = ligand.df['HETATM'][["residue_name","chain_id","residue_number"]].drop_duplicates().values
+        #res_hetatm =[f"{a}-{b}-{c}" for a,b,c in res_hetatm]
+        #heav_cnt = (ligand.df["ATOM"].element_symbol!="H").sum() + (ligand.df["HETATM"].element_symbol!="H").sum()
+        #res_atom = ligand.df['ATOM'][["residue_name","chain_id","residue_number"]].drop_duplicates().values
+        #res_atom =[f"{a}-{b}-{c}" for a,b,c in res_atom]
 
         ligand = pd.concat([ligand.df["HETATM"], ligand.df["ATOM"]])
         
         # Detect groups of multi-residue ligands // this only works for same-chain residues
-        if len(res_hetatm)>1 and len(links)>0:
-            resgroups = groupresidues(res_hetatm, links)
-        else:
+        #if len(res_hetatm)>1 and len(links)>0:
+        #    resgroups = groupresidues(res_hetatm, links)
+        #    print(aaaa)
+        #else:
             #len hetatm is 0,1
             # can either be a 1-res small lig alone or a chain lig
-            resgroups = [x[-4:].strip() for x in res_hetatm + res_atom]
-            resgroups = pd.DataFrame(zip(resgroups,range(1,len(resgroups)+1)), columns=["resn","group"])
-            resgroups.loc[:,"resn"] = resgroups.resn.values.astype(int)
+        #    resgroups = [x[-4:].strip() for x in res_hetatm + res_atom]
+        #    resgroups = pd.DataFrame(zip(resgroups,range(1,len(resgroups)+1)), columns=["resn","group"])
+        #    resgroups.loc[:,"resn"] = resgroups.resn.values.astype(int)
 
         # accomodate for chain ligands
         
         # go through all ligands
         contacts_chainlig = []
         contacts_chainlig_reschain = []
-        for resgroup in resgroups.group.unique():
-            close_res = []
-            close_res_chain = []
-            for res in resgroups.query(f'group=={resgroup}').resn.values:
-                ligres = ligand[ligand.residue_number == res]
-                for ref_coord in ligres[['x_coord', 'y_coord', 'z_coord']].values:
-                    keepclose = prot.distance(ref_coord, records=('ATOM',))<distmax
-                    closeatomschain = prot.df["ATOM"][keepclose].residue_name + prot.df["ATOM"][keepclose].residue_number.astype(str) + "-" + prot.df["ATOM"][keepclose].chain_id
-                    closeatoms = prot.df["ATOM"][keepclose].residue_name + prot.df["ATOM"][keepclose].residue_number.astype(str)
-                    # Remove self contact
-                    if "_lig_chain-" in ligandfile:
-                        chain_lig = ligandfile.split("_lig_chain-")[1].split(".")[0]
-                        lines2keep = prot.df["ATOM"][keepclose].chain_id != chain_lig
-                        closeatomschain = closeatomschain[lines2keep]
-                        closeatoms = closeatoms[lines2keep]
-                    close_res.append(closeatoms.drop_duplicates())
-                    close_res_chain.append(closeatomschain.drop_duplicates())
-            # store contacts per residue
-            close_res = np.unique(np.hstack(close_res))
-            close_res_chain = np.unique(np.hstack(close_res_chain))
-            # if ligand is a chain the contacts in the current residue must be appended to a larger list
-            contacts_chainlig.append(close_res)
-            contacts_chainlig_reschain.append(close_res_chain)
+        
+        for ref_coord in ligand[['x_coord', 'y_coord', 'z_coord']].values:
+            keepclose = prot.distance(ref_coord, records=('ATOM',))<distmax
+            closeatomschain = prot.df["ATOM"][keepclose].residue_name + prot.df["ATOM"][keepclose].residue_number.astype(str) + "-" + prot.df["ATOM"][keepclose].chain_id
+            closeatoms = prot.df["ATOM"][keepclose].residue_name + prot.df["ATOM"][keepclose].residue_number.astype(str)
+            # Remove self contact
+            if "_lig_chain-" in ligandfile:
+                chain_lig = ligandfile.split("_lig_chain-")[1].split(".")[0]
+                lines2keep = prot.df["ATOM"][keepclose].chain_id != chain_lig
+                closeatomschain = closeatomschain[lines2keep]
+                closeatoms = closeatoms[lines2keep]
+            contacts_chainlig.append(closeatoms.drop_duplicates())
+            contacts_chainlig_reschain.append(closeatomschain.drop_duplicates())
         
         if len(contacts_chainlig)>0: contacts_chainlig = np.unique(np.hstack(contacts_chainlig))
         else: contacts_chainlig = np.array([])
