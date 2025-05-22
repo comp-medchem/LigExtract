@@ -1,1 +1,4 @@
 data
+bin/BeEM.linux
+bin/__pycache__
+bin/find_ligands_multithread.py
