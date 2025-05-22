@@ -158,6 +158,7 @@ if [ $filter_option == "cluster" ]; then
 	rm -f *_pockets_hierarch-clusters.txt
 	python $rootdir/LigExtract/bin/cluster_ligands_hierarchical.py --pdbPath $d --ligandsPath "$d"_LIGS --prdCif $rootdir/LigExtract/data/prd-all.cif --uniprot2pdbFile "$d"_pdb_uniprot_filteredlist.txt > cluster_ligands.log
 	mv *clusters*.txt clusters/.
+	mv cleanpockets*.txt "$d"_ligandClusters.txt
 fi
 
 
