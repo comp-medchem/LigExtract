@@ -1,4 +1,8 @@
-# LigExtract: Automated Ligand Identification and Extraction from PDB Structures
+# LigExtract
+
+### Automated Ligand Identification and Extraction from PDB Structures
+
+Version: 1.1 (22 May 2025)
 
 ![](docs/sources/images/ligextract_logo.png)
 
