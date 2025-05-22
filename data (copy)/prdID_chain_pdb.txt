@@ -1,3 +1,0 @@
-instance_id	prd_id	asym_id	pdb
-1	PRD_900001	C	1ytv
-2	PRD_900001	D	1ytv
