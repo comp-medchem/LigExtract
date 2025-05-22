@@ -110,14 +110,14 @@ def findAllLinks(residues_lst, restypes, links_table):
         return([])
     if len(links_table) == 0:
         return([x for x in residues_lst])
-    res_chain_q = np.unique([x.split("-")[1] for x in residues_lst]) # order: "residue_name","chain_id","residue_number"
+    res_chain_q = np.unique([x.split(".")[1] for x in residues_lst]) # order: "residue_name","chain_id","residue_number"
     allLinks = []
     for ch in res_chain_q:
         foundlink = links_table.query(f"ptnr1_auth_asym_id == '{ch}' and ptnr2_auth_asym_id == '{ch}'")
         if len(foundlink) == 0:
             return([])
-        foundlink1 = ["-".join(x) for x in foundlink[['ptnr1_auth_comp_id', 'ptnr1_auth_asym_id', 'ptnr1_auth_seq_id']].values]
-        foundlink2 = ["-".join(x) for x in foundlink[['ptnr2_auth_comp_id', 'ptnr2_auth_asym_id', 'ptnr2_auth_seq_id']].values]
+        foundlink1 = [".".join(x) for x in foundlink[['ptnr1_auth_comp_id', 'ptnr1_auth_asym_id', 'ptnr1_auth_seq_id']].values]
+        foundlink2 = [".".join(x) for x in foundlink[['ptnr2_auth_comp_id', 'ptnr2_auth_asym_id', 'ptnr2_auth_seq_id']].values]
         foundlink = np.vstack(list(zip(foundlink1, foundlink2)))
         allLinks.append(list(foundlink))
     allLinks_ids = np.vstack(allLinks)
@@ -140,9 +140,9 @@ def findAllLinks(residues_lst, restypes, links_table):
     groups = nx.connected_components(G)
     all_groups_found =[]
     for group in groups:
-        all_groups_found.append(sorted(group, key=lambda x: int(x.split('-')[-1])))
+        all_groups_found.append(sorted(group, key=lambda x: int(x.split('.')[-1])))
     largest_group=max(all_groups_found, key=lambda df: len(df))
-    return([str(x) for x in largest_group]) #ABC-A-23
+    return([str(x) for x in largest_group]) #ABC.A.23
 
 
 

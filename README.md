@@ -48,13 +48,9 @@ This file will contain a list of UniProt IDs (see example in docs)
 **5.** Run LigExtract for your query proteins in your *_uniprot_list.txt file (without cleaning-up at the end). You can use the *cluster* mode if you want to keep all ligands (recommended for molecular docking, binding sites study, etc):
 
         ligextract.sh -d myproteins -r 2.5 -o cluster -c no
-        
-Alternatively use the *filter* mode when you want a list of deduplicated ligands:
-
-        ligextract.sh -d myproteins -r 2.5 -o filter -c no
 
 
-Cluster mode with clean-up at the end (i.e. removing all *.cif files):
+Cluster mode with clean-up at the end (i.e. removing all raw *.pdb files converted from *.cif):
 
         ligextract.sh -d myproteins -r 2.5 -o cluster -c yes
 
@@ -62,12 +58,13 @@ Cluster mode with clean-up at the end (i.e. removing all *.cif files):
   
   Notice how "myproteins" is the name provided to the -d argument, as this must correspond to the prefix of the *_uniprot_list.txt file.
   
+*In the example query provided in docs/myproteins_uniprot_list.txt processes 267 structures runs in 6m32s using 7 CPUs.*
 
 ## Outputs
 
 #### Cluster mode:
 
-Ligextract produces a table called **projectname_ligandClusters.txt** with all ligands and some data characterising them, looking like this:
+Ligextract produces a table called **projectname_ligandsList.txt** with all ligands and some data characterising them, looking like this:
 
 ligandfile | pocketres_chain | pocketres_chain_size | chain_name | ligtype | lig_ID | pdbcode 
 --- | --- | --- | --- | --- | --- | --- 
@@ -80,6 +77,8 @@ In the example shown above, structure [1SB1](https://www.rcsb.org/structure/1SB1
 The of identified ligands in the output file, and their corresponding cleaned proteins, are stored under **projectname/pdbs_filtered_chains/uniprotQuery/aligned_pdbs**. Here, *projectname* corresponds to the name you provided earlier, and *uniprotQuery* will correspond to each query in your input file. In this directory, a **pymol session file** (*.pse) is also saved with all ligands clustered (each cluster has a color and a code registered in the **clusters** directory).
 
 All structures inside a given uniprot query are aligned and saved separately (ligands and proteins in their own individual files). The **unaligned complexes** are also saved one level up, in **projectname/pdbs_filtered_chains/uniprotQuery**.
+
+The original, raw list of ligands after the first pass (module 1) of ligand identification is saved in **rawlist_extraction.txt**.
 
 
 

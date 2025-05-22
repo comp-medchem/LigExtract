@@ -201,16 +201,19 @@ nonpolymer_cnt = {}
 
 #for pdbname in pdbs:
 def extractorSplit(pdbname):
+    storeLog=[]
     print(f"#######  Finding ligands in  {pdbname.split('.')[0]}  #######")
     pdbcode = pdbname.upper().split(".")[0]
     pdb = open(f"{pdbpath}/{pdbname}").readlines()
     if len(pdb) == 0:
-        print(f"! {pdbname} has zero lines. Please verify the file is valid.")
+        storeLog.append(f"! {pdbname} has zero lines. Please verify the file is valid.")
+        storeLog = "\n".join(storeLog)
+        print(storeLog)
         return(pdbcode)
     
     try: uniprotid = uniprot2pdb.query(f"pdb == '{pdbcode.upper()}'").uniprot.values[0]
     except IndexError:
-        print(f"Unable to find {pdbcode.upper()} in {uniprot2pdb_file}. Make sure this pdb code is in the file, in all capitals.")
+        storeLog.append(f"Unable to find {pdbcode.upper()} in {uniprot2pdb_file}. Make sure this pdb code is in the file, in all capitals.")
         sys.exit(123)
     # remove PDBs where the protein actually is not found within DBREF
     uniprotid_alternates = uniprot2pdb_secondary.query(f"pdb == '{pdbcode.lower()}'").uniprot_in_pdbfile.values
@@ -222,8 +225,10 @@ def extractorSplit(pdbname):
         other_uniprots = uniprot2pdb_secondary.query(f"pdb == '{pdbcode.lower()}'").updated_uniprot.values
         other_uniprots = np.setdiff1d(other_uniprots, uniprotid)
         if np.isin(uniprot2pdb.uniprot.unique(), other_uniprots).any() == False:
-            print(f"{pdbcode} does not have any chain for ANY of the desired uniprotIDs in the full collection of targets! REMOVED protein")
+            storeLog.append(f"{pdbcode} does not have any chain for ANY of the desired uniprotIDs in the full collection of targets! REMOVED protein")
         os.remove(f'{pdbpath}/{pdbname}')
+        storeLog = "\n".join(storeLog)
+        print(storeLog)
         return(pdbcode)
     
     # initialise file to store as a log
@@ -281,7 +286,7 @@ def extractorSplit(pdbname):
     norine = [x.startswith("NOR") and len(x) == 8 for x in data.pdbx_db_accession.values]
     peptidechains_norine = data[norine].pdbx_strand_id.values
     peptidechains = np.union1d(peptidechains, peptidechains_norine)
-    print(f"peptide chains for {pdbcode}:", ",".join(peptidechains))
+    storeLog.append(f"peptide chains for {pdbcode}: {','.join(peptidechains)}")
     isprotein = np.setdiff1d(isprotein, peptidechains)
     notaprotein = np.union1d(notaprotein, peptidechains)
     
@@ -342,21 +347,16 @@ def extractorSplit(pdbname):
             res_hetatm = lig.df['HETATM'][["residue_name","chain_id","residue_number"]].drop_duplicates().values
             
             if len(res_atom) > 0: # part/all of the ligand is in ATOM
-                res_atom =[f"{a}-{b}-{c}" for a,b,c in res_atom]
-                res_hetatm =[f"{a}-{b}-{c}" for a,b,c in res_hetatm]
+                res_atom =[f"{a}.{b}.{c}" for a,b,c in res_atom]
+                res_hetatm =[f"{a}.{b}.{c}" for a,b,c in res_hetatm]
                 # see which res connect from HETATM to ATOM
                 
                 # At the moment this does not cover all exceptions as some cases fail to mention ATOM-HETATM links that exist (e.g. 1de7)
                 all_linked_atms = np.unique(findAllLinks(res_atom, "ATOM", links) + findAllLinks(res_hetatm,"HETATM", links))
-                # add additional residues that are in the sequence but not in all_linked_atms
-                #chainres = np.hstack([x.strip()[19:].split() for x in seq if chain == x[11]])
-                #chainres = [int(x[-4:].strip()) for x in res_hetatm if x[:3] in chainres]
-                #chainres = [] # placeholder ; do we need to incorporate _pdbx_entity_nonpoly here
-                #all_linked_atms = np.hstack([all_linked_atms, chainres])
                 if len(all_linked_atms)==0: continue
-                print("----------#########", all_linked_atms)
-                filtered_lig_het = [lig.df["HETATM"].query(f'residue_name=="{ln.split("-")[0]}" and chain_id=="{ln.split("-")[1]}" and residue_number=={ln.split("-")[2]}') for ln in all_linked_atms]
-                filtered_lig_atm = [lig.df["ATOM"].query(f'residue_name=="{ln.split("-")[0]}" and chain_id=="{ln.split("-")[1]}" and residue_number=={ln.split("-")[2]}') for ln in all_linked_atms]
+                storeLog.append(f"----------######### {all_linked_atms}")
+                filtered_lig_het = [lig.df["HETATM"].query(f'residue_name=="{ln.split(".")[0]}" and chain_id=="{ln.split(".")[1]}" and residue_number=={ln.split(".")[2]}') for ln in all_linked_atms]
+                filtered_lig_atm = [lig.df["ATOM"].query(f'residue_name=="{ln.split(".")[0]}" and chain_id=="{ln.split(".")[1]}" and residue_number=={ln.split(".")[2]}') for ln in all_linked_atms]
                 
                 lig.df['ATOM'] = pd.concat(filtered_lig_atm)
                 lig.df['HETATM'] = pd.concat(filtered_lig_het)
@@ -364,24 +364,24 @@ def extractorSplit(pdbname):
                 
                 if (len(lig.df["ATOM"][["residue_name", "chain_id", "residue_number"]].drop_duplicates())+len(lig.df["HETATM"][["residue_name", "chain_id", "residue_number"]].drop_duplicates())) != len(all_linked_atms): sys.exit("all_linked_atoms is not mapping correctly to ATOM/HETATM.")
                 lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM'], gz=False, append_newline=True)
-                print(f'lig_chain-{chain}')
+                storeLog.append(f'lig_chain-{chain}')
                 logfile.write(f"rebuilt ligand detected in chain {chain}\n")
 
             if len(res_atom) == 0: # ligand is entirely in HETATM but has multiple residues
-                res_hetatm =[f"{a}-{b}-{c}" for a,b,c in res_hetatm]
+                res_hetatm =[f"{a}.{b}.{c}" for a,b,c in res_hetatm]
                 linked_hetatm = findAllLinks(res_hetatm, "HETATM", links)
                 lig.df['ATOM'] = lig.df['ATOM'][lig.df['ATOM'].chain_id==chain]
                 lig.df['HETATM'] = lig.df['HETATM'][lig.df['HETATM'].chain_id==chain]
                 if len(linked_hetatm)>0:
                     lig.df['HETATM'] = lig.df['HETATM'][np.isin(lig.df['HETATM'].residue_number,linked_hetatm)]
                 if len(linked_hetatm)==0:
-                    print("[LOG WARN] no linked hetatm residues - bypass")
+                    storeLog.append("[LOG WARN] no linked hetatm residues - bypass")
                     # untie with HET
                     #het = [x.split() for x in pdb if x.startswith('HET ')]
                     #het = [x[1] for x in het if x[2]==chain]
                     #lig.df['HETATM'] = lig.df['HETATM'][np.isin(lig.df['HETATM'].residue_name,het)]
                 lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM', "OTHERS"], gz=False, append_newline=True)
-                print(f'lig_chain-{chain}')
+                storeLog.append(f'lig_chain-{chain}')
                 logfile.write(f"rebuilt ligand detected in chain {chain}; exclusively found in HETATM records\n")
     
     
@@ -402,7 +402,7 @@ def extractorSplit(pdbname):
     # save cmpds_removes according to BIRD
     cmpds_removed = np.setdiff1d(cmpds_removed, lig_ids_in_bird)
 
-    if len(cmpds_removed)>0: print("The following compounds do not comply wih the inclusion criteria of minimum 3 heavy atoms and maximum of 10 repeated molecules:",cmpds_removed)
+    if len(cmpds_removed)>0: storeLog.append(f"The following compounds do not comply wih the inclusion criteria of minimum 3 heavy atoms and maximum of 10 repeated molecules: {cmpds_removed}")
     cmpds = np.union1d(cmpds_ok, ligands)
 
     cmpds = np.setdiff1d(cmpds, cmpds_removed)
@@ -428,7 +428,7 @@ def extractorSplit(pdbname):
                             res_stat = result.status_code
                             result = result.content.decode("utf-8")
                             if result == "" and res_stat not in [200,204]: #,204
-                                print(f"{cpd}: unssuccessful request for PDB count\n") 
+                                storeLog.append(f"{cpd}: unssuccessful request for PDB count\n") 
                                 message = f"(!) Found in {pdbcnt} PDBs! Might not be a ligand."
                             elif res_stat==204: # has no hits
                                 pdbcnt = 0
@@ -441,7 +441,7 @@ def extractorSplit(pdbname):
                                 if pdbcnt>250 :
                                     message = f"(!) Found in {pdbcnt} PDBs! Might not be a ligand."
                                 nonpolymer_cnt[cpd]=pdbcnt
-            print(cpd)
+            storeLog.append(cpd)
             links_warning = []
             for link in links:
                 if f' {cpd} ' in link:
@@ -449,8 +449,8 @@ def extractorSplit(pdbname):
             
             if len(links_warning)>0:
                 logfile.write(f"{cpd}   ligand connected to other molecules. {message}\n")
-                print(f"    WARNING!  Ligand {cpd} appears to be connected to other molecules (see .log file).\n")
-                print(f"    This means it (1) is just a portion of the ligand or (2) is covalently bound (which requires further struture correction to return both ligand and protein to original unbound structure)\n")
+                storeLog.append(f"    WARNING!  Ligand {cpd} appears to be connected to other molecules (see .log file).\n")
+                storeLog.append(f"    This means it (1) is just a portion of the ligand or (2) is covalently bound (which requires further struture correction to return both ligand and protein to original unbound structure)\n")
                 logfile.write("\t"+"            ---- res 1 ----               ---- res 2 ----                 bond (A)\n")
                 for w in links_warning:
                     logfile.write("\t"+w+"\n")
@@ -467,7 +467,7 @@ def extractorSplit(pdbname):
                 lig.df["ATOM"] = lig.df["ATOM"].query(f'residue_name=="NOTHING"') # should not exist here
                 lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_chain-{chain}_lig-{cpd}-{resx}.pdb', records=['ATOM', 'HETATM', "OTHERS"], 
                                 gz=False, append_newline=True)
-                print(f'{pdbname.split(".")[0]}_chain-{chain}_lig-{cpd}-{resx}') #cases like 8uv1 ligands will start replacing each other.
+                storeLog.append(f'{pdbname.split(".")[0]}_chain-{chain}_lig-{cpd}-{resx}') #cases like 8uv1 ligands will start replacing each other.
 
 
     # compare all ligands in cmpds, if links is empty. Rebuilding from links will happen in next module
@@ -551,13 +551,13 @@ def extractorSplit(pdbname):
         non_glycosylation_oligos_chains = np.array([])
 
     for chain in non_glycosylation_oligos_chains:
-        print(f'lig_chain-{chain} (oligosaccharide)')
+        storeLog.append(f'lig_chain-{chain} (oligosaccharide)')
         lig = PandasPdb().read_pdb(f'{originpath}/{pdbname}')
         lig.df["HETATM"] = lig.df["HETATM"].query(f'chain_id=="{chain}"')
         lig.df["ATOM"] = lig.df["ATOM"].query(f'chain_id=="{chain}"')
         lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM'], 
                         gz=False, append_newline=True)
-        print(f'{pdbname.split(".")[0]}_lig_chain-{chain}')
+        storeLog.append(f'{pdbname.split(".")[0]}_lig_chain-{chain}')
         # ADD TO INDIVIDUAL LOG
 
 
@@ -576,7 +576,7 @@ def extractorSplit(pdbname):
     #prd_chains = np.setdiff1d(prd_chains, isprotein)
     
     for chain in prd_chains:
-        print(f'lig_chain-{chain} (oligosaccharide/peptide found from BIRD)')
+        storeLog.append(f'lig_chain-{chain} (oligosaccharide/peptide found from BIRD)')
         lig = PandasPdb().read_pdb(f'{originpath}/{pdbname}')
         lig.df["HETATM"] = lig.df["HETATM"].query(f'chain_id=="{chain}"')
         lig.df["ATOM"] = lig.df["ATOM"].query(f'chain_id=="{chain}"')
@@ -611,6 +611,8 @@ def extractorSplit(pdbname):
 
     found_match = np.intersect1d([a[1] for a in lig_seq_all],[x[1] for x in prd_seq_list])
     if len(found_match) == 0:
+        storeLog = "\n".join(storeLog)
+        print(storeLog)
         return(pdbcode)
     
     match_ids = []
@@ -629,10 +631,12 @@ def extractorSplit(pdbname):
 
             if f'{pdbname.split(".")[0]}_lig_chain-{chain}.pdb' not in os.listdir(outpath):
                 lig.to_pdb(path=f'{outpath}/{pdbname.split(".")[0]}_lig_chain-{chain}.pdb', records=['ATOM', 'HETATM'], gz=False, append_newline=True)
-                print(f'lig_chain-{chain}')
+                storeLog.append(f'lig_chain-{chain}')
             else:
-                print(f'lig_chain-{chain} found again')
+                storeLog.append(f'lig_chain-{chain} found again')
             logfile.write(f"rebuilt ligand detected in chain {chain}; associated with PRD ID {prdID} which means it is likely active\n")
+    storeLog = "\n".join(storeLog)
+    print(storeLog)
     return(pdbcode)
 
 # multithreading
