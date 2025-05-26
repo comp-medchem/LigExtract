@@ -9,7 +9,7 @@
 
 Software that allows large-scale ligand extraction from UniProt ID queries. 
 
-Developed by **Natália Aniceto** (ORCID 0000-0001-7039-0022), **Nuno Martinho** (ORCID 0000-0001-5102-4756) and **Rita Guedes** (ORCID 0000-0002-5790-9181).
+
 
 The original publication describing this tool in depth, including performance benchmarks, is [here](https://academic.oup.com/gpb/advance-article/doi/10.1093/gpbjnl/qzaf018/8046017)
 
@@ -106,4 +106,7 @@ The original, raw list of ligands after the first pass (module 1) of ligand iden
 
 
 #### _________
+
+Developed by **Natália Aniceto** (ORCID 0000-0001-7039-0022), **Nuno Martinho** (ORCID 0000-0001-5102-4756) and **Rita Guedes** (ORCID 0000-0002-5790-9181).
+
 If you encounter any errors or issues, or if you have any suggestions, please email Natalia Aniceto at: nataliaaniceto [at]ff.ul.pt
