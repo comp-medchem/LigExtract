@@ -62,7 +62,7 @@ Cluster mode with clean-up at the end (i.e. removing all raw *.pdb files convert
   
   Notice how "myproteins" is the name provided to the -d argument, as this must correspond to the prefix of the *_uniprot_list.txt file.
   
-*In the example query provided in docs/myproteins_uniprot_list.txt processes 267 structures runs in 6m32s using 7 CPUs.*
+*In the example query provided in docs/myproteins_uniprot_list.txt, LigExtract processes 267 structures in 6m32s using 7 CPUs.*
 
 ## Outputs
 
