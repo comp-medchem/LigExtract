@@ -58,10 +58,19 @@ Cluster mode with clean-up at the end (i.e. removing all raw *.pdb files convert
 
         ligextract.sh -d myproteins -r 2.5 -o cluster -c yes
 
-  In this example, ligextract will only consider PDBs up to 2.5 Angstrom resolution and will employ the "cluster" mode (i.e., all ligands that survive filtration are kept, even if duplicated)
+  In this second example, ligextract will only consider PDBs up to 2.5 Angstrom resolution and will employ the "cluster" mode (i.e., all ligands that survive filtration are kept, even if duplicated). All raw PDB files will be removed after the process is finished with **-c yes**.
   
   Notice how "myproteins" is the name provided to the -d argument, as this must correspond to the prefix of the *_uniprot_list.txt file.
   
+
+Additionally you can provide your own list of PDBs. This is meant to make the query more efficient in cases where you do not want to consider/process all PDBs that map to your UniProt ID(s). This should be a simple *.txt file with one PDB code per line (not case sensitive).
+  
+
+You can also inspect the arguments available with.
+
+        ligextract.sh -h
+
+
 *In the example query provided in docs/myproteins_uniprot_list.txt, LigExtract processes 267 structures in 6m32s using 7 CPUs.*
 
 ## Outputs
@@ -91,10 +100,11 @@ The original, raw list of ligands after the first pass (module 1) of ligand iden
 
 #### Arguments of ligextract.sh:
      -h    usage information
-     -d    name of the directory that will be created with all PDBs. This will be the prefix for multiple files.
-     -r    maximum PDB resolution accepted
-     -o    selected ligand selection mode: can be 'filter' or 'cluster'
-     -c    cleaning outcome: 'yes' will delete cifs directory; 'no' will keep all *.cif files.
+     -d    name of the directory that will be created with all PDBs. This will be the prefix for multiple files. (required)
+     -r    maximum PDB resolution accepted (default=2.5)
+     -o    selected ligand selection mode: can be 'filter' or 'cluster' (default='cluster')
+     -c    cleaning outcome: 'yes' will delete cifs directory; 'no' will keep all *.cif files. (default='yes')
+     -f    file with a list of PDB IDs to use (optional)
      -v    See installed version
 
      

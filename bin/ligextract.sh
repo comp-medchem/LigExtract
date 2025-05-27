@@ -5,33 +5,64 @@ VERSION="1.1"
 # ligextract.sh -d myproteins -r 3.5 -o cluster -c no
 # ligextract.sh -d myproteins -r 3.5 -o cluster -c yes
 
-while getopts ':h?d:r:o:c:v' opts; do
+# ---------- default values ----------
+res="2.5"               # -r  (max resolution)
+filter_option="cluster" # -o  ('filter' or 'cluster')
+cleanup="yes"            # -c  ('yes' or 'no')
+pdbFilter=""            # -f  (optional file)
+# -------------------------------------
+
+usage() {
+  cat <<EOF
+ligextract.sh – Large-scale identification of ligands from the Protein Data Bank
+
+Usage: ligextract.sh -d targetDir[options]
+
+  -d       directory to store PDBs and processed ligands  (no default)
+  -r       maximum PDB resolution accepted                (default: $res)
+  -o       'filter' or 'cluster' mode                     (default: $filter_option)
+  -c       remove intermediates? yes|no                   (default: $cleanup)
+  -f       file with a list of PDB IDs to use             (no default)
+  -v       print version
+  -h, -?   Help
+
+Examples
+  ligextract.sh -d queryName -r 2.5 -o cluster -c no
+  ligextract.sh -v
+EOF
+}
+
+
+while getopts ':h?d:r:o:c:f:v' opts; do
   case ${opts} in
     d) d="$OPTARG";;
     r) res="$OPTARG";;
     o) filter_option="$OPTARG";;
     c) cleanup="$OPTARG";;
+    f) pdbFilter="$OPTARG";;
     v) 
         echo "LigExtract version $VERSION"
         exit 0
         ;;
     \?|h|*) 
-        echo "Please use:"
-        echo "   ligextract.sh -d [directory that will receive pdbs and processed ligands] -r [maximum PDB resolution accepted] -o ['filter' or 'cluster'] -c ['yes' or 'no']"
-        echo "   e.g. ligextract.sh -d queryName -r 2.5 -o cluster -c no"
-        echo "   ligextract.sh -v      Print version"
+        usage
         exit 0
         ;;
   esac
 done
 
+[[ -z $d ]] && { echo "! Error: -d is required !"; usage; exit 1; }
+
+shift $(( OPTIND - 1 ))
+
+# ---------------------------------------------------------
+
 rootdir=`realpath "$0"`
 rootdir=`dirname $rootdir`
 rootdir="${rootdir/"/LigExtract/bin"/}"
 
-# clear out all log files before a new run
+# clear out all log files before a new run; reset clusters dir
 rm -f *.log
-#rm -fr $d
 rm -fR "$d"_LIGS
 rm -fR clusters; mkdir clusters
 
@@ -41,13 +72,26 @@ title=" Processing [${d}] Query "
 printf "%.*s %s %.*s\n\n\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
 
 
+printf 'Directory        : %s\n' "$d"
+printf 'Max resolution   : %s\n' "$res"
+printf 'Mode             : %s\n' "$filter_option"
+printf 'Cleanup          : %s\n' "$cleanup"
+printf 'PDB list file    : %s\n' "${pdbFilter:-<none>}"
+printf "\n\n"
+
+
 ######################################################################################################################
 ###################################################### MODULE 1 ######################################################
 title=" MODULE 1: Structure retrieval and processing "
 printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
 
 ##download all PDBs
-python $rootdir/LigExtract/bin/getPdbsFromUniprot.py --outputDir $d --uniprots "$d"_uniprot_list.txt --allPdbs $rootdir/LigExtract/data/allpdbs.txt --maxResol $res
+python $rootdir/LigExtract/bin/getPdbsFromUniprot.py --outputDir $d --uniprots "$d"_uniprot_list.txt --allPdbs $rootdir/LigExtract/data/allpdbs.txt --maxResol $res ${pdbFilter:+--pdbFilter "$pdbFilter"}
+
+if [ "$(wc -l < *pdb_uniprot_filteredlist.txt)" -eq 1 ]; then
+   echo "There are no PDBs left to process. Consider if 1) the resolution max is too low, or 2) the user-provided list overlaps the retrieved PDBs from the UniProt IDs in your query."
+   exit 1
+fi
 
 rm -f pdbs2download.txt
 mkdir -p cifs

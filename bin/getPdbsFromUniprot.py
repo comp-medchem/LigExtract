@@ -26,6 +26,7 @@ parser.add_argument('--outputDir', type=str, required=True, dest="targetdir",
 parser.add_argument('--uniprots', type=str, required=True, dest="uniprot_lst", help='File containing just a list of Uniprot IDs of interest')
 parser.add_argument('--allPdbs', type=str, required=True, dest="all_pdbs", help='File downloaded from ftp.wwpdb.org/pub/pdb/derived_data/index listing all PDBs.')
 parser.add_argument('--maxResol', type=float, required=True, dest="resolution_lim", help='maximum resolution value allowed to download a PDB')
+parser.add_argument('--pdbFilter', type=str, required=False, dest="pdbFilter", help='list of PDBs to consider, otherwise all PDBs mapped to the uniprotIDs will be considered.')
 
 args = parser.parse_args()
 
@@ -33,6 +34,8 @@ targetdir = args.targetdir
 uniprot_lst = args.uniprot_lst
 all_pdbs_file = args.all_pdbs
 resolution_lim = args.resolution_lim
+pdbFilter = args.pdbFilter
+
 
 
 length = 90
@@ -129,6 +132,13 @@ for param,n in unique_experiment_counts:
 
 
 uniprot_pdb_dict = uniprot_pdb_dict[np.isin(uniprot_pdb_dict["EXPERIMENT TYPE (IF NOT X-RAY)"].values, accepted_experiment_types)]
+
+# optional filter with the manual list
+if args.pdbFilter is not None:          # user supplied a file
+    pdb_ids_manualinput = [x.strip().upper() for x in open(args.pdbFilter).readlines()]
+    uniprot_pdb_dict = uniprot_pdb_dict[uniprot_pdb_dict.pdb.isin(pdb_ids_manualinput)]
+
+
 uniprot_pdb_dict.to_csv(f'{targetdir}_pdb_uniprot_filteredlist.txt', sep="\t", index=False)
 
 accepted_experiment_types = [f"'{x}'" for x in accepted_experiment_types]
