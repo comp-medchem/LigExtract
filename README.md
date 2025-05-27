@@ -64,9 +64,11 @@ Cluster mode with clean-up at the end (i.e. removing all raw *.pdb files convert
   
 
 Additionally you can provide your own list of PDBs. This is meant to make the query more efficient in cases where you do not want to consider/process all PDBs that map to your UniProt ID(s). This should be a simple *.txt file with one PDB code per line (not case sensitive).
-  
 
-You can also inspect the arguments available with.
+        ligextract.sh -d myproteins -r 3 -f myPdbQueries.txt
+
+
+You can inspect the arguments available with:
 
         ligextract.sh -h
 
