@@ -4,8 +4,6 @@ Code maintenance plan:
 
 - Add warning if any of the dependency resources stops working and halt the process
 
-- Add functionality to allow for PDB queries
-
 - Add ability to handle structures with too many chains (structure file is split)
 
 - check ION detection

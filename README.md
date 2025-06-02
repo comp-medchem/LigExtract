@@ -22,7 +22,7 @@ Below is the overall workflow of LigExtract:
 
 ## Dependencies
 
-LigExtract was developed on Linux and written in Python 3. It requires PyMol to be installed and, to avoid issues with properly interfacing with a system-wide PyMOL, the ligextract env has its own pymol installation.
+LigExtract was developed on Linux and written in Python 3 (tested with conda **24.9.2**). It requires PyMol to be installed and, to avoid issues with properly interfacing with a system-wide PyMOL, the ligextract env has its own pymol installation.
 
 Once you have installed the conda env provided and have activated it, you can run the command below to check if PyMOL can be used properly within the LigExtract environment.
 
