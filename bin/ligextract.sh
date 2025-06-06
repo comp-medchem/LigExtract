@@ -125,16 +125,18 @@ for cif in cifs/*cif; do
             # if more than 1 pdb bundle, bypass this for now 
             if [ `ls "$pdbcode"-pdb-bundle*.pdb | wc -l` -gt 1 ]; then
                 rm "$pdbcode"-*
+                continue
             fi
             mv "$pdbcode"-pdb-bundle1.pdb $pdbname
         fi
-        mv $pdbname $d/.	
+        mv $pdbname $d/.
 	fi
 done
 
-if compgen -G "*ligand-id-mapping.tsv" > /dev/null; then
-    mv *ligand-id-mapping.tsv cifs/.
+if compgen -G "*-id-mapping.*" > /dev/null; then
+    mv *-id-mapping.* cifs/.
 fi
+
 
 #mv *chain-id-mapping.txt $d/.
 
