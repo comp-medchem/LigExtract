@@ -116,10 +116,19 @@ fi
 # convert all cifs to PDB to access ATOM and HETATM
 printf "\nConvert mmCIF to pdb\n"
 for cif in cifs/*cif; do
+    pdbcode=$(basename "$cif" .cif)
 	pdbname=$(basename "$cif" .cif).pdb
 	if [ ! -f "$d/$pdbname" ]; then
 		$rootdir/LigExtract/bin/BeEM.linux $cif >> cifpdbconvert.log
-		mv $pdbname $d/.	
+		# if BeEM produces *chain-id-mapping.txt file, change the name back to <pdbname>.pdb
+        if [ -f "$pdbcode"-chain-id-mapping.txt ]; then
+            # if more than 1 pdb bundle, bypass this for now 
+            if [ `ls "$pdbcode"-pdb-bundle*.pdb | wc -l` -gt 1 ]; then
+                rm "$pdbcode"-*
+            fi
+            mv "$pdbcode"-pdb-bundle1.pdb $pdbname
+        fi
+        mv $pdbname $d/.	
 	fi
 done
 
