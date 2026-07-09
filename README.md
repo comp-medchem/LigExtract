@@ -20,22 +20,34 @@ Below is the overall workflow of LigExtract:
 ![](docs/sources/images/scheme_app_nologo.png)
 
 
-## Dependencies
 
-LigExtract was developed on Linux and written in Python 3. It requires PyMol to be installed and, to avoid issues with properly interfacing with a system-wide PyMOL, the ligextract env has its own pymol installation.
+## Installing LigExtract
 
-Once you have installed the conda env provided and have activated it, you can run the command below to check if PyMOL can be used properly within the LigExtract environment.
+**1.** git clone LigExtract into your desired directory:
 
-    pymol -cq
+        git clone https://github.com/comp-medchem/LigExtract.git
 
+**2.** Make scripts inside bin executable:
+
+        chmod 755 path/to/LigExtract/bin *.sh
+        
+**3.** Append the following line to the end of your .bashrc file (this will make ligextract runnable from anywhere in your system):
+
+        echo 'export PATH="/path/to/LigExtract/bin:$PATH"' >> ~/.bashrc
+
+**4.** create a ligextract conda environment:
+
+        conda env create -f path/to/LigExtract/ligextract.yml
+
+**5.** Activate the ligextract environment
+
+**6.** Build dependencies (one-off preprocessing step):
+        
+        build_dependencies.sh
 
 ## Running LigExtract
 
-**1.** git clone LigExtract into your home directory. Make ligextract.sh and build_dependencies.sh inside of bin executable (i.e. chmod 755 *.sh). Add path to LigExtract/bin to your $PATH environment.
-
-**2.** create a conda environment from ligextract.yml, and activate it.
-
-**3.** cd into your working directory. This is where all PDBs will be downloaded and processed. This directory must contain a file with a name following the format 
+**1.** cd into your working directory. This is where all PDBs will be downloaded and processed. This directory must contain a file with a name following the format 
 
         <projectname>_uniprot_list.txt
 
@@ -45,20 +57,16 @@ For example, my project is called "myproteins" so the file will be named
 
 This file will contain a list of UniProt IDs (see example in docs)
 
-**4.** Build dependencies (one-off downloads):
-        
-        build_dependencies.sh
 
-**5.** Run LigExtract for your query proteins in your *_uniprot_list.txt file (without cleaning-up at the end). You can use the *cluster* mode if you want to keep all ligands (recommended for molecular docking, binding sites study, etc):
+
+**2.** Run LigExtract for your query proteins in your *_uniprot_list.txt file, using a maximum resolution value of your choice (e.g. let's consider a cutoff of 2.5). You should use the *cluster* mode (recommended for molecular docking, binding sites study, etc). the following example applies no cleanup (-c no):
 
         ligextract.sh -d myproteins -r 2.5 -o cluster -c no
 
 
-Cluster mode with clean-up at the end (i.e. removing all raw *.pdb files converted from *.cif):
+Alternativelly, you can use cluster mode with clean-up at the end (i.e. removing all raw *.pdb files converted from *.cif), changing to "-c yes".
 
-        ligextract.sh -d myproteins -r 2.5 -o cluster -c yes
-
-  In this second example, ligextract will only consider PDBs up to 2.5 Angstrom resolution and will employ the "cluster" mode (i.e., all ligands that survive filtration are kept, even if duplicated). All raw PDB files will be removed after the process is finished with **-c yes**.
+In this example, ligextract will only consider PDBs up to 2.5 Angstrom resolution and will employ the "cluster" mode (i.e., all ligands that survive filtration are kept, even if duplicated). 
   
   Notice how "myproteins" is the name provided to the -d argument, as this must correspond to the prefix of the *_uniprot_list.txt file.
   
@@ -95,7 +103,8 @@ All structures inside a given uniprot query are aligned and saved separately (li
 
 The original, raw list of ligands after the first pass (module 1) of ligand identification is saved in **rawlist_extraction.txt**.
 
-
+#### Filter mode:
+filter model is currently disabled
 
 ## Additional Information:
   

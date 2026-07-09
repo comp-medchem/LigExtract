@@ -18,11 +18,11 @@ ligextract.sh – Large-scale identification of ligands from the Protein Data Ba
 
 Usage: ligextract.sh -d targetDir[options]
 
-  -d       directory to store PDBs and processed ligands  (no default)
-  -r       maximum PDB resolution accepted                (default: $res)
-  -o       'filter' or 'cluster' mode                     (default: $filter_option)
-  -c       remove intermediates? yes|no                   (default: $cleanup)
-  -f       file with a list of PDB IDs to use             (no default)
+  -d       directory to store PDBs and processed ligands            (no default)
+  -r       maximum PDB resolution accepted                          (default: $res)
+  -o       'filter' or 'cluster' mode                               (default: $filter_option)
+  -c       remove intermediates? yes|no                             (default: $cleanup)
+  -f       file with a list (one-per-line) of PDB IDs to use        (no default)
   -v       print version
   -h, -?   Help
 
@@ -114,29 +114,23 @@ if compgen -G "*.gz" > /dev/null; then
 fi
 
 # convert all cifs to PDB to access ATOM and HETATM
-printf "\nConvert mmCIF to pdb\n"
-for cif in cifs/*cif; do
-	pdbname=$(basename "$cif" .cif).pdb
-	if [ ! -f "$d/$pdbname" ]; then
-		$rootdir/LigExtract/bin/BeEM.linux $cif >> cifpdbconvert.log
-		mv $pdbname $d/.	
-	fi
-done
+bash $rootdir/LigExtract/bin/parallel_beem_convert.sh $rootdir $d >> pdbconvert.log
 
-if compgen -G "*ligand-id-mapping.tsv" > /dev/null; then
-    mv *ligand-id-mapping.tsv cifs/.
+if compgen -G "*-id-mapping.*" > /dev/null; then
+    mv *-id-mapping.* cifs/.
 fi
 
-#mv *chain-id-mapping.txt $d/.
 
 # handle all 5-letter cases
 printf "\nProcess 5-letter codes\n"
-python $rootdir/LigExtract/bin/processLongCodes.py
+python $rootdir/LigExtract/bin/processLongCodes.py > cifprocessing.log
+
 
 
 > "$d"_process_uniprot_chains.err
 > "$d"_process_uniprot_chains.txt
 python $rootdir/LigExtract/bin/process_chains.py --pdbspath $d
+
 
 
 ## check if some pdbs failed
@@ -145,7 +139,7 @@ echo `grep "Request to Uniprot failed" "$d"_process_uniprot_chains.err | wc -l` 
 sed -i '/Request to Uniprot failed after/d' "$d"_process_uniprot_chains.err
 if [[ $redo_pdbs != "" ]]; then 
 	echo "LigExtract will repeat chain processing for failed PDBs"
-	python $rootdir/LigExtract/bin/process_chains.py --pdbspath $d --pdbsToRedo $redo_pdbs; 
+	python $rootdir/LigExtract/bin/process_chains.py --pdbspath $d --pdbsToRedo $redo_pdbs ;
 fi 
 
 
@@ -158,7 +152,7 @@ title=" MODULE 2: Ligand Extraction "
 printf "\n\n%.*s %s %.*s\n\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" "$(((length - ${#title}) / 2))" "$padding"
 
 
-python $rootdir/LigExtract/bin/extract_ligands.py --pdbPath $d --outputPath "$d"_LIGS --uniprot2pdbFile "$d"_pdb_uniprot_filteredlist.txt > ligand_extraction.log
+python $rootdir/LigExtract/bin/extract_ligands.py --pdbPath $d --outputPath "$d"_LIGS --uniprot2pdbFile "$d"_pdb_uniprot_filteredlist.txt > ligand_extraction.log # fix this
 
 
 ls "$d"_LIGS > rawlist_extraction.txt
@@ -204,6 +198,7 @@ if [ $filter_option == "cluster" ]; then
 	mv *clusters*.txt clusters/.
 	mv cleanpockets_"$d".txt "$d"_ligandsList.txt
 	rm pockets*
+
 fi
 
 

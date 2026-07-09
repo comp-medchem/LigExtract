@@ -6,6 +6,7 @@ from time import sleep
 import requests
 import subprocess
 import json
+from glob import glob
 import argparse
 home = os.path.realpath(__file__)
 home = home.split("/LigExtract")[0]
@@ -25,11 +26,23 @@ except FileExistsError:
 
 pdbs2download = [x.lower() for x in uniprot_pdb_dict["pdb"].unique()]
 
+# clean remnants of past files
+add_files = glob("cifs/*.log") + glob("cifs/*.txt") + glob("cifs/*.tsv")
+for f in add_files:
+    pdb_pref = f.split("/")[-1].split(".")[0].split("-")[0]
+    if pdb_pref not in pdbs2download:
+        os.remove(f)
 
 # check is pdb is already downloaded 
-already_downloaded = [x.split(".")[0] for x in os.listdir("cifs")]
+already_downloaded = [x.split("/")[-1].split(".")[0] for x in glob('cifs/*.cif')]
 
 pdbs2download = np.setdiff1d(pdbs2download, already_downloaded)
+# if pdbs are being queued up to be downloaded, make sure to clean their log files first
+for pdb in pdbs2download:
+    try: os.remove(f"cif/{pdb}.log")
+    except FileNotFoundError:
+        continue
+
 
 if len(pdbs2download)>0:
     print(len(pdbs2download), "PDBs queued to download")
@@ -38,4 +51,5 @@ if len(pdbs2download)>0:
     outfile.close()
 else:
     print("All PDBs already downloaded")
+
 
