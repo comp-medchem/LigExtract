@@ -68,7 +68,7 @@ uniprot2pdb_secondary = pd.read_csv(f"{protein_dir.split('/')[-1]}_process_unipr
 
 # SIFTS pdb chain mapping
 sifts_pdb2uniprot = []
-with gzip.open(f"{HOME}/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
+with gzip.open(f"{home}/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
     for ln in f: # PDB  CHAIN   SP_PRIMARY
         ln=ln.decode("utf-8").strip().split(",")
         if ln[0].upper() in uniprot2pdb.pdb.values:
@@ -100,26 +100,10 @@ for f in glob(f'{ligands_dir}/*_lig_chain-*.pdb'):
     #cleaned_lig = subprocess.run(f"obabel -i pdb {f} -r -o pdb", shell=True, capture_output=True)
     resname_counts = original_lig.df["HETATM"].drop_duplicates(["residue_name", "residue_number"]).value_counts("residue_name").to_frame()
     cleaned_lig_het = resname_counts.query("count <= 3").index
-    # consider some ligands with repeated units
-    pdbCode = f.split("/")[-1].split("_")[0]
-    cifdata = CifFileReader().read(f"cifs/{pdbCode}.cif")
-    if "_struct_conn" in cifdata[pdbCode.upper()]:
-        links = pd.DataFrame.from_dict(cifdata[pdbCode.upper()]["_struct_conn"], orient="index").T
-        chainkey = f.split("chain-")[-1].split(".")[0]
-        conn_res = links.query(f"ptnr1_label_asym_id == '{chainkey}' and conn_type_id == 'covale'")
-        saveres = conn_res.ptnr1_label_comp_id.unique()
-    else:
-        saveres = []
-    # rejoin those ligands to the list to keep
-    cleaned_lig_het = np.union1d(cleaned_lig_het, saveres)
-    # if cleaned_lig_het is empty something might be wrong
-    if len(cleaned_lig_het)==0:
-        sys.stderr.write(f"\nchain ligand unexpectedly empty after cleaning: {f}.\n HALT PROCESS!\n")
-        sys.exit(123)
     removed_res_solvent_het = original_lig.df['HETATM'][~np.isin(original_lig.df['HETATM'].residue_name, cleaned_lig_het)][["residue_name", "residue_number"]]
     removed_solvent_res.append(removed_res_solvent_het.residue_name.unique())
     original_lig.df['HETATM'] = original_lig.df['HETATM'][np.isin(original_lig.df['HETATM'].residue_name, cleaned_lig_het)]
-    original_lig.to_pdb(path=f, records=None, gz=False, append_newline=True)
+    original_lig.to_pdb(path=f, records=None, gz=False, append_newline=True) 
 
 bar1.finish()
 sys.stderr.write("\ndone cleaning ligands.\n")
