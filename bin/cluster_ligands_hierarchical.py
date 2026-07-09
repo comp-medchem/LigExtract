@@ -396,6 +396,25 @@ def clusteringSplit(prot, p_i):
             print(newligname, centroid)
             ligand_centroid.append(np.hstack([newligname, centroid]))
     
+    # strip ligands from protein file
+    pdbsref_list = np.unique([x.split("_")[0] for x in glob(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/{pdb}*align.pdb")])
+    for pdbref in pdbsref_list:
+        pdbsref_ligs = glob(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/{pdb}_*_LIG.pdb")
+        pdbsref_prot = glob(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/{pdb}_*_align.pdb")[0]
+        # remove ligand residues from the prot file
+        pdbsref_prot_content = PandasPdb().read_pdb(pdbsref_prot)
+        for pdblig in pdbsref_ligs:
+            pdblig_content = PandasPdb().read_pdb(pdblig)
+            lighet = [tuple(x) for x in pdblig_content.df["HETATM"][["residue_name", "residue_number"]].drop_duplicates().values]
+            toexcl = pdbsref_prot_content.df["HETATM"][["residue_name", "residue_number"]].apply(tuple, axis=1).isin(lighet)#([("ala", 1),("ile", 2)])
+            pdbsref_prot_content.df["HETATM"] = pdbsref_prot_content.df["HETATM"][~toexcl]
+
+            ligatom = [tuple(x) for x in pdblig_content.df["ATOM"][["residue_name", "residue_number"]].drop_duplicates().values]
+            toexcl = pdbsref_prot_content.df["ATOM"][["residue_name", "residue_number"]].apply(tuple, axis=1).isin(ligatom)#([("ala", 1),("ile", 2)])
+            pdbsref_prot_content.df["ATOM"] = pdbsref_prot_content.df["ATOM"][~toexcl]
+        # re-save the stripped file
+        pdbsref_prot_content.to_pdb(path=pdbsref_prot, records=['ATOM', 'HETATM'], gz=False, append_newline=True)
+
     # Cluster controids
     ligand_centroid = pd.DataFrame(ligand_centroid)
     if ligand_centroid[0].nunique() != len(ligand_centroid):

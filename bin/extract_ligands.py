@@ -432,37 +432,13 @@ def extractorSplit(pdbname):
 
 
     if len(cmpds)>0:
+        pdbCnts = pd.read_csv(f"{home}/LigExtract/data/all_pdbligs.txt", sep="\t")
         for cpd in cmpds:
             message = ""
-            with open(f"{home}/LigExtract/data/all_pdbligs.txt") as f: 
-                for line in f:
-                    if line == "id\tcount\n": continue
-                    pdbcnt = int(line.strip().split("\t")[1])
-                    if pdbcnt>250 and line.split("\t")[0]==cpd and line.split("\t")[0] not in whitelisted_ligs:
-                        # see if compound has been already tested for non-polymer count
-                        if cpd in nonpolymer_cnt.keys():
-                            pdbcnt = nonpolymer_cnt[cpd]
-                            if pdbcnt>250 : message = f"(!) Found in {pdbcnt} PDBs! Might not be a ligand."
-                        else:
-                            # calculate real non-polymer count
-                            params = json.loads(open(f"{home}/LigExtract/bin/pdb_api_counts.q").read().replace("LIGAND", cpd))
-                            result = requests.get("https://search.rcsb.org/rcsbsearch/v2/query", {"json": json.dumps(params, separators=(",", ":"))})
-                            res_stat = result.status_code
-                            result = result.content.decode("utf-8")
-                            if result == "" and res_stat not in [200,204]: #,204
-                                storeLog.append(f"{cpd}: unssuccessful request for PDB count\n") 
-                                message = f"(!) Found in {pdbcnt} PDBs! Might not be a ligand."
-                            elif res_stat==204: # has no hits
-                                pdbcnt = 0
-                                message = f"(!) Found in {pdbcnt} PDBs! Might not be a ligand."
-                                nonpolymer_cnt[cpd]=pdbcnt
-                            else:
-                                result = eval(result)
-                                pdbcnt = result["total_count"]
-                                #FINAL result
-                                if pdbcnt>250 :
-                                    message = f"(!) Found in {pdbcnt} PDBs! Might not be a ligand."
-                                nonpolymer_cnt[cpd]=pdbcnt
+            pdbcnt = pdbCnts.query(f"id == '{cpd}'")["count"].values[0]
+            if pdbcnt>250 and cpd not in whitelisted_ligs:
+                message = f"(!) Found in {pdbcnt} PDBs! Might not be a ligand."
+                
             storeLog.append(cpd)
             links_warning = []
             for link in links:

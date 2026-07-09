@@ -37,8 +37,9 @@ echo "Get ligand counts across all PDB" # Ligand Expo is no longer maitained
 
 # from https://github.com/rcsb/rcsb-training-resources/blob/master/example-use-cases/pdb-ligand-composition
 # cc-counts-extra.tsv is the new cc-counts.tdd that used to be in Ligand Expo
-python $rootdir/LigExtract/bin/generate_pdb_ligand_mappings.py --chem_comp_types nonpolymer branched --generate_cc_extra_file
+# --generate_cc_extra_file gives full count, which is not desired (I only want nonpolymer)
+python $rootdir/LigExtract/bin/generate_pdb_ligand_mappings.py --chem_comp_types nonpolymer # --generate_cc_extra_file
 
-python -c "import pandas as pd; d=pd.read_csv('cc-counts-extra.tsv', sep='\t'); d[['id', 'count']].to_csv('all_pdbligs.txt', index=False, sep='\t')"
+python -c "import pandas as pd; d = [x.strip().split('\t') for x in open('cc-to-pdb.tsv').readlines()]; d=pd.DataFrame([[x[0], len(x[1].split(' '))] for x in d], columns=['id', 'count']); d.to_csv('all_pdbligs.txt', index=False, sep='\t')"
 mv all_pdbligs.txt $rootdir/LigExtract/data/.
-rm pdb-to-cc.tsv cc-counts-extra.tsv cc-to-pdb.tsv
+rm pdb-to-cc.tsv cc-to-pdb.tsv #cc-counts-extra.tsv 
