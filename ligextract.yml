@@ -196,4 +196,3 @@ dependencies:
       - looseversion==1.1.2
       - msgpack==1.1.0
       - pdbecif==1.5
-prefix: /home/nmartinho/anaconda3/envs/ligextract
