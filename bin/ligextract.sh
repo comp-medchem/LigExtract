@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="1.1"
+VERSION="1.2"
 # ligextract.sh -d myproteins -r 3.5 -o cluster -c no
 # ligextract.sh -d myproteins -r 3.5 -o cluster -c yes
 
