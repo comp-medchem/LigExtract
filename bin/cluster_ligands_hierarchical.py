@@ -17,6 +17,7 @@ from copy import copy
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pdbecif.mmcif_io import CifFileReader
+import traceback
 #HOME = str(Path.home())
 HOME = os.path.realpath(__file__)
 HOME = HOME.split("/LigExtract")[0]
@@ -32,6 +33,8 @@ prot_dir = args.prot_dir
 lig_dir = args.lig_dir
 cif_file = args.cif_file
 uniprot2pdbFile = args.uniprot2pdbFile
+
+# All the processing of the PDB files (not in the ligands) is done in this script
 
 uniprot2pdbFile = pd.read_csv(uniprot2pdbFile, sep="\t")
 
@@ -316,7 +319,8 @@ def clusteringSplit(prot, p_i):
             # remove all lines that are HETATM and not in pdb_ligs and NOT is modres
             all_ligs = protein_pdb.df["HETATM"].residue_name.unique()
             ligs2keep = np.unique(np.hstack(ligs2keep))
-            ligs2keep = np.setdiff1d(ligs2keep, modres)
+            # excluding modres at this stage would no longer make sense - either it is an actual modres from the protein or it is from the ligand.
+            #ligs2keep = np.setdiff1d(ligs2keep, modres)
             lig2discard = protein_pdb.df["HETATM"][~protein_pdb.df["HETATM"].residue_name.isin(ligs2keep)].residue_name.unique()
             protein_pdb.df["HETATM"] = protein_pdb.df["HETATM"][protein_pdb.df["HETATM"].residue_name.isin(ligs2keep)]
             print(f"removing resname from {pdb}: {';'.join(lig2discard)}")
@@ -324,6 +328,7 @@ def clusteringSplit(prot, p_i):
             protein_pdb.to_pdb(path=f"{prot_dir}/pdbs_filtered_chains/{prot}/{pdb}_keychain{'-'.join(chainset)}.pdb", records=None, gz=False, append_newline=True)
     
     print("\nALIGNMENT --------------------------")
+    #produce the *align.pdb files here
     rmsd=subprocess.run(f'pymol -cq {HOME}/LigExtract/bin/align_pdbs_pockets.py -- {prot_dir}/pdbs_filtered_chains/{prot}', shell=True, capture_output=True)
     refpdb_align = [x for x in os.listdir(f'{prot_dir}/pdbs_filtered_chains/{prot}') if x.endswith(".pdb")][0]
     if len(pockets_prot.pdbcode.unique())>1:
@@ -428,12 +433,20 @@ num_workers = os.cpu_count()-1
 
 with ProcessPoolExecutor(max_workers=num_workers) as executor: #num_workers
     #executor.map(extractorSplit, pdbs)
-    futures = [executor.submit(clusteringSplit, protein, pi) for pi,protein in enumerate(prot_lst)]
+    futures = {executor.submit(clusteringSplit, protein, pi):protein for pi,protein in enumerate(prot_lst)}
     barthread = Bar('Aligning chains and Clustering ligands... ', max=len(futures))
     results = []
+    failed = []
     for f in as_completed(futures):
-        results.append(f.result())
-        barthread.next()
+        protein = futures[f]
+        try:
+            results.append(f.result())
+        except Exception as e:
+            failed.append((protein, type(e).__name__ , str(e) ))
+            print(f"\n[FAIL] {protein} --> {type(e).__name__}:{e}")
+            traceback.print_exc()
+        finally:
+            barthread.next()
     barthread.finish()
 
 sys.stderr.write(f"\n\nFinished Clustering pockets.\n\n")

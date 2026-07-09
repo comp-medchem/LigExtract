@@ -45,6 +45,7 @@ for pdbname in pdbs:
     ciffile = f"cifs/{pdbcode}.cif"
     if glob(ciffile) == 0:
         print("file does not exit:", ciffile)
+        sys.exit()
     data = CifFileReader().read(ciffile)
     data = data[pdbcode.upper()]
     if "_struct_ref_seq" in data:

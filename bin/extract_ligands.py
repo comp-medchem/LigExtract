@@ -35,6 +35,7 @@ from pdbecif.mmcif_io import CifFileReader
 from glob import glob
 from scipy.spatial.distance import euclidean
 from itertools import product,combinations
+import traceback
 
 #home = str(Path.home())
 home = os.path.realpath(__file__)
@@ -65,13 +66,23 @@ print(f"\n{pad_char * (padding_total // 2)} {title} {pad_char * (padding_total -
 
 
 # First handle CIFs that are to large (remove now; to include later)
-largecifs = [x.split("-")[0] for x in glob("*-chain-id-mapping.txt")]
+# # WARNING - once this gets integrated, need to handle files that get split into two pdbs!
+oddcifs = [x.split("-")[0].split("/")[-1] for x in glob("cifs/*-chain-id-mapping.txt")]
 
-for pdb in largecifs:
+rm_pdb = []
+for pdb in oddcifs:
+    rm_pdb.append(pdb)
     for pdbsplit in glob(f'{pdbpath}/{pdb}*.pdb'):
         os.remove(pdbsplit)
     if len(glob(f"cifs/{pdb}.cif"))>0:
         os.remove(f"cifs/{pdb}.cif")
+    for f in glob(f"cifs/{pdb}*.t*"):
+        os.remove(f)
+
+# update uniprot2pdb_file to remove the discarded pdbs from oddcifs
+uniprot2pdb = pd.read_csv(uniprot2pdb_file, sep="\t")
+uniprot2pdb = uniprot2pdb[~uniprot2pdb.pdb.str.lower().isin(rm_pdb)]
+uniprot2pdb.to_csv(uniprot2pdb_file, index=False, sep="\t")
 
 originpath = f'{os.getcwd()}/{pdbpath}'.replace("/./","/")
 targetpath = f'{os.getcwd()}/{outpath}'.replace("/./","/")
@@ -82,7 +93,7 @@ if ("pdb_chain_uniprot.csv.gz" in os.listdir(f"{home}/LigExtract/data")) == Fals
 
 whitelisted_ligs = [ln.strip() for ln in open(f"{home}/LigExtract/docs/whitelist_ligands.txt").readlines()]
 
-uniprot2pdb = pd.read_csv(uniprot2pdb_file, sep="\t") 
+uniprot2pdb = pd.read_csv(uniprot2pdb_file, sep="\t")
 missing_downloads = np.setdiff1d(uniprot2pdb.pdb.str.lower(), [x.split(".")[0] for x in os.listdir(pdbpath) if x.endswith(".pdb")])
 extra_downloads = np.setdiff1d([x.split(".")[0] for x in os.listdir(pdbpath) if x.endswith(".pdb")], uniprot2pdb.pdb.str.lower())
 pdbs = [x for x in os.listdir(pdbpath) if x.endswith(".pdb")]
@@ -136,22 +147,27 @@ def detectBoundLigands(file1, file2):
     return(min(ed)) #1.7: print("might be covalently bound")
 
 
-
+print("Extraction of all chains with PRD code")
 # After all cifs have been downloaded, screen them to grab PRD IDs
 bar = Bar('Extract all chains with PRD code... ', max=len(pdbs))
 all_prds_chains = []
 for pdb in pdbs:
     bar.next()
-    pdbcode = pdb.split(".")[0]
-    ciffile = f"cifs/{pdbcode}.cif"
-    cifdata = CifFileReader().read(ciffile)
-    data = cifdata[pdbcode.upper()]
-    if "_pdbx_molecule" in data:
-        data = pd.DataFrame.from_dict(data["_pdbx_molecule"], orient="index").T
-        data.loc[:,"pdb"] = pdbcode
-        all_prds_chains.append(data)
+    try:
+        pdbcode = pdb.split(".")[0]
+        ciffile = f"cifs/{pdbcode}.cif"
+        cifdata = CifFileReader().read(ciffile)
+        data = cifdata[pdbcode.upper()]
+        if "_pdbx_molecule" in data:
+            data = pd.DataFrame.from_dict(data["_pdbx_molecule"], orient="index").T
+            data.loc[:,"pdb"] = pdbcode
+            all_prds_chains.append(data)
+    except:
+        print(f"Failed on {pdb}.")
 
 bar.finish()
+
+print("Finished extraction")
 
 if len(all_prds_chains)>0:
     all_prds_chains = pd.concat(all_prds_chains)
@@ -160,21 +176,27 @@ else:
 
 
 # gather a new-2-old dictionary of chains
+print("Building chains dictionary")
 bar = Bar('Building chains dictionary... ', max=len(pdbs))
 pdb_auth_chains_dict = {}
 
 for pdb in pdbs:
     bar.next()
-    pdbcode = pdb.split(".")[0]
-    ciffile = f"cifs/{pdbcode.lower()}.cif"
-    cifdata = CifFileReader().read(ciffile)
-    data = cifdata[pdbcode.upper()]
-     # translate new chain ID (asym_id) to original chain ID (author_asym_id)
-    if "_atom_site" in data:
-        data = pd.DataFrame.from_dict(data["_atom_site"], orient="index").T
-        pdb_auth_chains = data[["auth_asym_id", "label_asym_id"]].drop_duplicates()
-        pdb_auth_chains_dict[pdbcode] = {newlabel:authlabel for authlabel,newlabel in pdb_auth_chains[["auth_asym_id", "label_asym_id"]].values}
+    try:
+        pdbcode = pdb.split(".")[0]
+        ciffile = f"cifs/{pdbcode.lower()}.cif"
+        cifdata = CifFileReader().read(ciffile)
+        data = cifdata[pdbcode.upper()]
+        # translate new chain ID (asym_id) to original chain ID (author_asym_id)
+        if "_atom_site" in data:
+            data = pd.DataFrame.from_dict(data["_atom_site"], orient="index").T
+            pdb_auth_chains = data[["auth_asym_id", "label_asym_id"]].drop_duplicates()
+            pdb_auth_chains_dict[pdbcode] = {newlabel:authlabel for authlabel,newlabel in pdb_auth_chains[["auth_asym_id", "label_asym_id"]].values}
+    except:
+        print(f"Failed on {pdb}.")
 bar.finish()
+print("Finished.")
+
 
 # translate PRD's chains (reported as label_asym_id) to auth_asym_id
 all_prds_chains_NEW = []
@@ -197,7 +219,7 @@ prd2pdb.to_csv(f"{home}/LigExtract/data/prd_to_pdb_IDs.txt", sep="\t", index=Fal
 nonpolymer_cnt = {}
 
 
-
+print("Start Processing PDBs for first-pass extraction of ligands.")
 
 #for pdbname in pdbs:
 def extractorSplit(pdbname):
@@ -313,7 +335,7 @@ def extractorSplit(pdbname):
     if "_pdbx_entity_nonpoly" in data:
         ligands = pd.DataFrame.from_dict(data["_pdbx_entity_nonpoly"], orient="index").T #_chem_comp
         ligands = ligands.comp_id.values
-        ligands = np.setdiff1d(ligands, "HOH")
+        ligands = np.setdiff1d(ligands, ["HOH","DOD"])
     else:
         ligands = np.array([])
 
@@ -644,13 +666,20 @@ num_workers = os.cpu_count()-1
 
 
 with ProcessPoolExecutor(max_workers=num_workers) as executor:
-    #executor.map(extractorSplit, pdbs)
-    futures = [executor.submit(extractorSplit, pdb_q) for pdb_q in pdbs]
-    bar = Bar('Extracting Ligands... ', max=len(futures))
+    future_to_pdb = {executor.submit(extractorSplit, pdb_q):pdb_q for pdb_q in pdbs}
+    bar = Bar('Extracting Ligands... ', max=len(future_to_pdb))
     results = []
-    for f in as_completed(futures):
-        results.append(f.result())
-        bar.next()
+    failed = []
+    for f in as_completed(future_to_pdb):
+        pdb_q = future_to_pdb[f]
+        try:
+            results.append(f.result())
+        except Exception as e:
+            failed.append((pdb_q, type(e).__name__ , str(e) ))
+            print(f"\n[FAIL] {pdb_q} --> {type(e).__name__}:{e}")
+            traceback.print_exc()
+        finally:
+            bar.next()
     bar.finish()
 
 
