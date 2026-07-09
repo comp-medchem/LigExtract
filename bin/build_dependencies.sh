@@ -33,11 +33,7 @@ gunzip $rootdir/LigExtract/data/prd-all.cif.gz
 
 python $rootdir/LigExtract/bin/get_prd2pdb.py $rootdir/LigExtract/data/prd-all.cif
 echo "Get ligand counts across all PDB" # Ligand Expo is no longer maitained
-#wget http://ligand-expo.rcsb.org/dictionaries/cc-counts.tdd -O $rootdir/LigExtract/data/all_pdbligs.txt --quiet
-
 # from https://github.com/rcsb/rcsb-training-resources/blob/master/example-use-cases/pdb-ligand-composition
-# cc-counts-extra.tsv is the new cc-counts.tdd that used to be in Ligand Expo
-# --generate_cc_extra_file gives full count, which is not desired (I only want nonpolymer)
 python $rootdir/LigExtract/bin/generate_pdb_ligand_mappings.py --chem_comp_types nonpolymer # --generate_cc_extra_file
 
 python -c "import pandas as pd; d = [x.strip().split('\t') for x in open('cc-to-pdb.tsv').readlines()]; d=pd.DataFrame([[x[0], len(x[1].split(' '))] for x in d], columns=['id', 'count']); d.to_csv('all_pdbligs.txt', index=False, sep='\t')"
