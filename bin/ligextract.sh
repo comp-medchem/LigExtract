@@ -87,7 +87,7 @@ printf "%.*s %s %.*s\n" "$(((length - 1 - ${#title}) / 2))" "$padding" "$title" 
 
 ##download all PDBs
 python $rootdir/LigExtract/bin/getPdbsFromUniprot.py --outputDir $d --uniprots "$d"_uniprot_list.txt --allPdbs $rootdir/LigExtract/data/allpdbs.txt --maxResol $res ${pdbFilter:+--pdbFilter "$pdbFilter"}
-
+echo "---- WARNING ! Entries with empty resolution were assigned Res=11, and entries with 'NOT' were assigned Res=10"
 if [ "$(wc -l < *pdb_uniprot_filteredlist.txt)" -eq 1 ]; then
    echo "There are no PDBs left to process. Consider if 1) the resolution max is too low, or 2) the user-provided list overlaps the retrieved PDBs from the UniProt IDs in your query."
    exit 1

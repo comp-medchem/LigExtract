@@ -16,7 +16,7 @@ import numpy as np
 from progress.bar import Bar
 
 # handle ligand codes (e.g. 9f77)
-# convert large Ligand names into BeEM names
+# convert large Ligand names into BeEM names (e.g. A1AZR --> 01)
 print("Screening for ligand-id-mapping files to convert IDs into short form.")
 
 bar = Bar('Processing IDs... ', max=len(glob("cifs/*ligand-id-mapping.tsv")))
@@ -27,7 +27,7 @@ for pdb_convert in glob("cifs/*ligand-id-mapping.tsv"):
 
     pdb_lig_convert = [ln.strip().split("\t") for ln in open(pdb_convert).readlines()]
     pdb_lig_convert = pd.DataFrame(pdb_lig_convert[1:], columns=pdb_lig_convert[0])
-    conversionDict = {long:short for short,long in pdb_lig_convert.values}
+    conversionDict = {lng:short for short,lng in pdb_lig_convert.values}
 
     cifdata = CifFileReader().read(f'cifs/{pdb}.cif')
     data = cifdata[pdb.upper()]

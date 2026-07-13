@@ -112,17 +112,18 @@ for f in glob(f'{ligands_dir}/*_lig_chain-*.pdb'):
         saveres = []
     # rejoin those ligands to the list to keep
     cleaned_lig_het = np.union1d(cleaned_lig_het, saveres)
-    # if cleaned_lig_het is empty something might be wrong
-    if len(cleaned_lig_het)==0:
-        sys.stderr.write(f"\nchain ligand unexpectedly empty after cleaning: {f}.\n HALT PROCESS!\n")
-        sys.exit(123)
-    removed_res_solvent_het = original_lig.df['HETATM'][~np.isin(original_lig.df['HETATM'].residue_name, cleaned_lig_het)][["residue_name", "residue_number"]]
-    removed_solvent_res.append(removed_res_solvent_het.residue_name.unique())
-    original_lig.df['HETATM'] = original_lig.df['HETATM'][np.isin(original_lig.df['HETATM'].residue_name, cleaned_lig_het)]
-    original_lig.to_pdb(path=f, records=None, gz=False, append_newline=True)
+    # if cleaned_lig_het is empty means it was already clean of extra compounds
+    #if len(cleaned_lig_het)==0:
+    #    sys.stderr.write(f"\nchain ligand unexpectedly empty after cleaning: {f}.\n HALT PROCESS!\n")
+    #    sys.exit(123)
+    if len(cleaned_lig_het)>0:
+        removed_res_solvent_het = original_lig.df['HETATM'][~np.isin(original_lig.df['HETATM'].residue_name, cleaned_lig_het)][["residue_name", "residue_number"]]
+        removed_solvent_res.append(removed_res_solvent_het.residue_name.unique())
+        original_lig.df['HETATM'] = original_lig.df['HETATM'][np.isin(original_lig.df['HETATM'].residue_name, cleaned_lig_het)]
+        original_lig.to_pdb(path=f, records=None, gz=False, append_newline=True)
 
 bar1.finish()
-sys.stderr.write("\ndone cleaning ligands.\n")
+sys.stderr.write("\ndone cleaning chain ligands.\n\n")
 
 try: 
     removed_solvent_res = np.hstack(removed_solvent_res)

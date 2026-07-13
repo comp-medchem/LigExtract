@@ -31,7 +31,8 @@ length = 90; pad_char = '-'
 title="Final Ligand Selection"
 padding_total = length - len(title) - 2
 print(f"\n{pad_char * (padding_total // 2)} {title} {pad_char * (padding_total - (padding_total // 2))}\n")
-
+sys.stderr("Filter mode currently disabled.")
+sys.exit(123)
 
 pockets = pd.read_csv(f"pockets_{prot_dir.split('/')[-1]}.txt", sep="\t")
 keep_ligands_file = open(f"{lig_dir}_final_ligands2keep.txt","w")

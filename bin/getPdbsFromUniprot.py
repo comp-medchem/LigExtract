@@ -18,7 +18,7 @@ home = os.path.realpath(__file__)
 home = home.split("/LigExtract")[0]
 uniprot_fun = f'{home}/LigExtract/bin/'
 sys.path.insert(1, uniprot_fun)
-from uniprot_map_api import *
+#from uniprot_map_api import *
 
 parser = argparse.ArgumentParser(description='Find all PDB IDs corresponding to a list of Uniprot IDs using the RCSB PDB Search API')
 parser.add_argument('--outputDir', type=str, required=True, dest="targetdir",
@@ -79,19 +79,11 @@ all_pdbs = [ln.strip() for ln in open(all_pdbs_file).readlines()]
 all_pdbs_head = all_pdbs[0].split(", ")
 all_pdbs = pd.DataFrame([ln.split("\t") for ln in all_pdbs[2:]], columns = all_pdbs_head)
 all_pdbs = all_pdbs.rename(columns={"IDCODE":"pdb"})[["pdb", "HEADER","RESOLUTION","EXPERIMENT TYPE (IF NOT X-RAY)"]]
-all_pdbs = all_pdbs.query("RESOLUTION != 'NOT'")
+# Include no-resolution experiments
+#all_pdbs = all_pdbs.query("RESOLUTION != 'NOT'")
+all_pdbs.loc[:,"RESOLUTION"] = all_pdbs[["RESOLUTION"]].replace({"NOT":"10", "":"11"})
 resol_lst = [np.nanmax(np.array(x.replace("NOT","nan").strip().split(",")).astype(float)) if "," in x else x for x in all_pdbs.RESOLUTION]
 
-filter_lines = []
-for val in all_pdbs.RESOLUTION:
-    try:
-        float(val)
-        filter_lines.append(True)
-    except ValueError:
-        filter_lines.append(False)
-
-all_pdbs = all_pdbs[filter_lines]
-resol_lst = np.array(resol_lst)[filter_lines]
 
 all_pdbs.loc[:,"RESOLUTION"] = np.array(resol_lst).astype(float)
 
@@ -134,8 +126,8 @@ for param,n in unique_experiment_counts:
 uniprot_pdb_dict = uniprot_pdb_dict[np.isin(uniprot_pdb_dict["EXPERIMENT TYPE (IF NOT X-RAY)"].values, accepted_experiment_types)]
 
 # optional filter with the manual list
-if args.pdbFilter is not None:          # user supplied a file
-    pdb_ids_manualinput = [x.strip().upper() for x in open(args.pdbFilter).readlines()]
+if pdbFilter is not None:          # user supplied a file
+    pdb_ids_manualinput = [x.strip().upper() for x in open(pdbFilter).readlines()]
     uniprot_pdb_dict = uniprot_pdb_dict[uniprot_pdb_dict.pdb.isin(pdb_ids_manualinput)]
 
 

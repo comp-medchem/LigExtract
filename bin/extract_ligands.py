@@ -409,8 +409,8 @@ def extractorSplit(pdbname):
     
     ##########  EXTRACT LIGAND - METHOD 2  ###########
     # This method extracts ligands from the typical section where ligands are found
-    #cmpds_all = [cmpd[12:15].strip() for cmpd in formulas]
-    cifdata = CifFileReader().read(ciffile)
+    
+    #cifdata = CifFileReader().read(ciffile)
     seqs = pd.DataFrame.from_dict(cifdata[pdbcode.upper()]["_entity_poly"], orient="index").T 
     res_not_cmpds = [x for x in seqs.pdbx_seq_one_letter_code.values if "(" in x]
     if len(res_not_cmpds)>0:
@@ -421,6 +421,8 @@ def extractorSplit(pdbname):
 
     lig_ids_in_bird = pd.read_csv(f"{home}/LigExtract/data/prd_to_pdb_ligIDs.txt", sep="\t").pdblig_ID.values
     cmpds_ok, cmpds_removed = countMolsAtoms(pdbcode)
+    print("compounds OK", cmpds_ok)
+    print("compounds removed (>10 mols or <3 heavAtom)",cmpds_removed)
     # save cmpds_removes according to BIRD
     cmpds_removed = np.setdiff1d(cmpds_removed, lig_ids_in_bird)
 
@@ -430,12 +432,16 @@ def extractorSplit(pdbname):
     cmpds = np.setdiff1d(cmpds, cmpds_removed)
     cmpds = np.setdiff1d(cmpds, res_not_cmpds)
 
-
     if len(cmpds)>0:
+        print(cmpds)
         pdbCnts = pd.read_csv(f"{home}/LigExtract/data/all_pdbligs.txt", sep="\t")
         for cpd in cmpds:
             message = ""
-            pdbcnt = pdbCnts.query(f"id == '{cpd}'")["count"].values[0]
+            pdbcnt = pdbCnts.query(f"id == '{cpd}'")
+            # in cases where ligand is 01 (BeEM short code), this will not be in the list. For now we will asume this is a legitimate ligand
+            if len(pdbcnt) == 0: pdbcnt=1
+            else: pdbcnt = pdbcnt["count"].values[0]
+            
             if pdbcnt>250 and cpd not in whitelisted_ligs:
                 message = f"(!) Found in {pdbcnt} PDBs! Might not be a ligand."
                 
@@ -654,9 +660,12 @@ with ProcessPoolExecutor(max_workers=num_workers) as executor:
             failed.append((pdb_q, type(e).__name__ , str(e) ))
             print(f"\n[FAIL] {pdb_q} --> {type(e).__name__}:{e}")
             traceback.print_exc()
+            sys.stderr.write("\n\nFinished Ligand extraction with errors. See log.\n\n")
+            sys.exit(123)
         finally:
             bar.next()
     bar.finish()
+
 
 
 print("\n\nFinished Ligand extraction.")

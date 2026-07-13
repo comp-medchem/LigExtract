@@ -14,7 +14,7 @@ from pdbecif.mmcif_io import CifFileReader
 home = os.path.realpath(__file__)
 home = home.split("/LigExtract")[0]
 sys.path.append(f'{home}/LigExtract/bin')
-from uniprot_map_api import *
+#from uniprot_map_api import *
 
 parser = argparse.ArgumentParser(description='Process all PDBs to annotate all chains with a possible protein identifier.')
 parser.add_argument('--pdbspath', type=str, required=True, dest="pdbpath", help='Path to directory containing all PDBs to process')
