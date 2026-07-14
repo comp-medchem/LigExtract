@@ -25,35 +25,35 @@ Below is the overall workflow of LigExtract:
 
 **1.** git clone LigExtract into your desired directory:
 
-        git clone https://github.com/comp-medchem/LigExtract.git
+    git clone https://github.com/comp-medchem/LigExtract.git
 
 **2.** Make scripts inside bin executable:
 
-        chmod 755 path/to/LigExtract/bin *.sh
+    chmod 755 path/to/LigExtract/bin *.sh
         
 **3.** Append the following line to the end of your .bashrc file (this will make ligextract runnable from anywhere in your system):
 
-        echo 'export PATH="/path/to/LigExtract/bin:$PATH"' >> ~/.bashrc
+    echo 'export PATH="/path/to/LigExtract/bin:$PATH"' >> ~/.bashrc
 
 **4.** create a ligextract conda environment:
 
-        conda env create -f path/to/LigExtract/ligextract.yml
+    conda env create -f path/to/LigExtract/ligextract.yml
 
 **5.** Activate the ligextract environment
 
 **6.** Build dependencies (one-off preprocessing step):
         
-        build_dependencies.sh
+    build_dependencies.sh
 
 ## Running LigExtract
 
 **1.** cd into your working directory. This is where all PDBs will be downloaded and processed. This directory must contain a file with a name following the format 
 
-        <projectname>_uniprot_list.txt
+    <projectname>_uniprot_list.txt
 
 For example, my project is called "myproteins" so the file will be named
         
-        myproteins_uniprot_list.txt
+    myproteins_uniprot_list.txt
 
 This file will contain a list of UniProt IDs (see example in docs)
 
@@ -61,10 +61,11 @@ This file will contain a list of UniProt IDs (see example in docs)
 
 **2.** Run LigExtract for your query proteins in your *_uniprot_list.txt file, using a maximum resolution value of your choice (e.g. let's consider a cutoff of 2.5). You should use the *cluster* mode (recommended for molecular docking, binding sites study, etc). the following example applies no cleanup (-c no):
 
-        ligextract.sh -d myproteins -r 2.5 -o cluster -c no
+    ligextract.sh -d myproteins -r 2.5 -o cluster -c no
 
+In order to consider PDB entries that have no associated resolution (e.g. NMR), instances where resolution is not applicable (resolution is annotated with 'NOT') were assigned the value 10, and instances where resolution would be expected but not reported were assigned the value 11. As a result, if you want to include these cases use **-r 12**, for example.
 
-Alternativelly, you can use cluster mode with clean-up at the end (i.e. removing all raw *.pdb files converted from *.cif), changing to "-c yes".
+Alternativelly, you can use clean-up at the end (i.e. removing all raw *.pdb files converted from *.cif), changing to "-c yes".
 
 In this example, ligextract will only consider PDBs up to 2.5 Angstrom resolution and will employ the "cluster" mode (i.e., all ligands that survive filtration are kept, even if duplicated). 
   
@@ -73,12 +74,12 @@ In this example, ligextract will only consider PDBs up to 2.5 Angstrom resolutio
 
 Additionally you can provide your own list of PDBs. This is meant to make the query more efficient in cases where you do not want to consider/process all PDBs that map to your UniProt ID(s). This should be a simple *.txt file with one PDB code per line (not case sensitive).
 
-        ligextract.sh -d myproteins -r 3 -f myPdbQueries.txt
+    ligextract.sh -d myproteins -r 3 -f myPdbQueries.txt
 
 
 You can inspect the arguments available with:
 
-        ligextract.sh -h
+    ligextract.sh -h
 
 
 *In the example query provided in docs/myproteins_uniprot_list.txt, LigExtract processes 267 structures in 6m32s using 7 CPUs.*
