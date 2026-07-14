@@ -152,7 +152,7 @@ for proteinfile in list_proteins:
     print(f"\n############### {pdbcode} ###############\n")
 
     if len(glob(f'{ligands_dir}/{pdbcode}_*.pdb'))==0:
-        print("There are no ligands to consider.")
+        print("There are no ligands to consider. This PDB is queued for removal.")
         continue
     
     try: uniprotid = uniprot2pdb.query(f"pdb == '{pdbcode.upper()}'").uniprot.values[0]
