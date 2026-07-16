@@ -18,6 +18,7 @@ from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pdbecif.mmcif_io import CifFileReader
 import traceback
+import gzip
 #HOME = str(Path.home())
 HOME = os.path.realpath(__file__)
 HOME = HOME.split("/LigExtract")[0]
@@ -220,9 +221,11 @@ for pdb in pdbs_in_pockets:
     
     
     save_clean_pockets = pd.DataFrame(save_clean_pockets, columns = ["ligandfile","pocketres_chain", "pocketres_chain_size", "chain_name"])
-    save_clean_pockets["ligtype"] = np.where(["lig_chain" in x for x in save_clean_pockets.ligandfile], "chain ligand", "small-molecule ligand")
-    save_clean_pockets["lig_ID"] = [x.split("lig-")[-1].split(".")[0] for x in save_clean_pockets.ligandfile]
+    save_clean_pockets.loc[:,"ligtype"] = np.where(["lig_chain" in x for x in save_clean_pockets.ligandfile], "chain ligand", "small-molecule ligand")
+    save_clean_pockets.loc[:,"lig_ID"] = [x.split("lig-")[-1].split(".")[0] for x in save_clean_pockets.ligandfile]
     save_clean_pockets = save_clean_pockets[~np.isin(save_clean_pockets.lig_ID, oligos)]
+    #save_clean_pockets.loc[:,"prot_query"] = prot
+
     
     if len(oligos)>0: print(f"The following oligosacharide residues were found and will be excluded from the ligands: {', '.join(oligos)}")
     
@@ -249,6 +252,33 @@ all_ligands = [x for x in os.listdir(lig_dir) if x.endswith(".pdb")]
 # save clean pockets, updated with the selected ligands
 save_clean_pockets = pd.concat(save_clean_pockets_list, sort=False)
 save_clean_pockets.loc[:,"pdbcode"] = [x.split("_")[0] for x in save_clean_pockets.ligandfile]
+
+pdbchains = []
+with gzip.open(f"{HOME}/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
+    for ln in f: # PDB  CHAIN   SP_PRIMARY
+        ln=ln.decode("utf-8").strip().split(",")
+        if len(pdbchains)==0:
+            if np.isin(ln,["PDB", "CHAIN"]).any():
+                pdbchains.append(ln)
+        if ln[0] in save_clean_pockets.pdbcode.unique():
+            pdbchains.append(ln)
+
+pdbchains = pd.DataFrame(pdbchains[1:], columns=pdbchains[0])
+pdbchains.loc[:,"chainSize"] = pdbchains.RES_END.astype(int) - pdbchains.RES_BEG.astype(int)
+pdbchains = pdbchains[['PDB', 'CHAIN', 'SP_PRIMARY',"chainSize"]]
+
+
+pdbchain_extendedannot = []
+for pdb,chains in save_clean_pockets[["pdbcode", "chain_name"]].values:
+    getMatch = []
+    for chain in chains.split(";"):
+        getMatch.append(pdbchains.query(f"PDB == '{pdb}' and CHAIN == '{chain}'"))
+    getMatch = pd.concat(getMatch).astype(str)
+    pdbchain_extendedannot.append([";".join(getMatch.CHAIN+"("+getMatch.SP_PRIMARY+")"), ";".join(getMatch.CHAIN+"("+getMatch.chainSize+")")])
+
+
+save_clean_pockets.loc[:,["chainUniprot","chainSize"]] = pdbchain_extendedannot
+
 
 save_clean_pockets.to_csv(f"cleanpockets_{prot_dir.split('/')[-1]}.txt", sep="\t", index=False)
 
