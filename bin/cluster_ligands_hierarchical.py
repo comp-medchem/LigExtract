@@ -266,6 +266,29 @@ with gzip.open(f"{HOME}/LigExtract/data/pdb_chain_uniprot.csv.gz") as f:
 pdbchains = pd.DataFrame(pdbchains[1:], columns=pdbchains[0])
 pdbchains.loc[:,"chainSize"] = pdbchains.RES_END.astype(int) - pdbchains.RES_BEG.astype(int)
 pdbchains = pdbchains[['PDB', 'CHAIN', 'SP_PRIMARY',"chainSize"]]
+pdbchains = pdbchains.groupby(['PDB', 'CHAIN', 'SP_PRIMARY'], as_index=False)['chainSize'].sum()
+
+
+#add extended (original) ligID codes
+
+longLigs = []
+for ligtype,shortlig,pdb in save_clean_pockets[["ligtype","lig_ID","pdbcode"]].values:
+    if ligtype != "small-molecule ligand":
+        longLigs.append("")
+        continue
+    shortlig = shortlig.split("-")[0]
+    if len(shortlig) > 3:
+        longLigs.append("")
+    elif len(shortlig) == 3:
+        longLigs.append(shortlig)
+    else:
+        dictLig = [x.strip().split("\t") for x in open(f"cifs/{pdb}-ligand-id-mapping.tsv").readlines()]
+        dictLig = dict(dictLig[1:])
+        longLig = dictLig[shortlig]
+        longLigs.append(longLig)
+
+save_clean_pockets.loc[:,"original_ligID"] = longLigs
+
 
 
 pdbchain_extendedannot = []
@@ -276,8 +299,8 @@ for pdb,chains in save_clean_pockets[["pdbcode", "chain_name"]].values:
     getMatch = pd.concat(getMatch).astype(str)
     pdbchain_extendedannot.append([";".join(getMatch.CHAIN+"("+getMatch.SP_PRIMARY+")"), ";".join(getMatch.CHAIN+"("+getMatch.chainSize+")")])
 
-
 save_clean_pockets.loc[:,["chainUniprot","chainSize"]] = pdbchain_extendedannot
+
 
 
 save_clean_pockets.to_csv(f"cleanpockets_{prot_dir.split('/')[-1]}.txt", sep="\t", index=False)
