@@ -29,7 +29,7 @@ Below is the overall workflow of LigExtract:
 
 **2.** Make scripts inside bin executable:
 
-    chmod 755 path/to/LigExtract/bin *.sh
+    chmod 755 path/to/LigExtract/bin/*.sh
         
 **3.** Append the following line to the end of your .bashrc file (this will make ligextract runnable from anywhere in your system):
 
