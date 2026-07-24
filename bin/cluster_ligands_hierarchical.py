@@ -450,18 +450,20 @@ def clusteringSplit(prot, p_i):
             ligand_centroid.append(np.hstack([newligname, centroid]))
     
     # strip ligands from protein file
-    pdbsref_ligs = glob(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/{pdb}_*_LIG.pdb")
-    pdbsref_prot = glob(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/{pdb}_*_align.pdb")
+    pdbsref_prot = glob(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/*_align.pdb")
 
     for pdbref_pro in pdbsref_prot:
+        pdb = pdbref_pro.split("/")[-1].split("_")[0]
         # remove ligand residues from the prot file
         pdbref_pro_content = PandasPdb().read_pdb(pdbref_pro)
+        pdbsref_ligs = glob(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/{pdb}_*_LIG.pdb")
         for pdblig in pdbsref_ligs:
             pdblig_content = PandasPdb().read_pdb(pdblig)
+            #hetatm section
             lighet = [tuple(x) for x in pdblig_content.df["HETATM"][["residue_name", "residue_number"]].drop_duplicates().values]
             toexcl = pdbref_pro_content.df["HETATM"][["residue_name", "residue_number"]].apply(tuple, axis=1).isin(lighet)#([("ala", 1),("ile", 2)])
             pdbref_pro_content.df["HETATM"] = pdbref_pro_content.df["HETATM"][~toexcl]
-
+            #atom section
             ligatom = [tuple(x) for x in pdblig_content.df["ATOM"][["residue_name", "residue_number"]].drop_duplicates().values]
             toexcl = pdbref_pro_content.df["ATOM"][["residue_name", "residue_number"]].apply(tuple, axis=1).isin(ligatom)#([("ala", 1),("ile", 2)])
             pdbref_pro_content.df["ATOM"] = pdbref_pro_content.df["ATOM"][~toexcl]
