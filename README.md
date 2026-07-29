@@ -100,7 +100,7 @@ ligandfile | pocketres_chain | pocketres_chain_size | chain_name | ligtype | lig
 
 In the excerpt shown above (obtained from the example query in myproteins_uniprot_list.txt), we seen three identified ligands:
 
-- the first instance is a di-peptide ligand annotated as part of chain A. Typically, this ligand would be assigned to its own chain, but here it is assigned the same chain as the larger chain A containing the protein query. In order to store this "multi-residue" ligand as a separate entity, the chain code "hA" has been assigned it. Even though the PDB entry 8zm6 has no publication to clarify these two residues are actually a complexed dipeptide, the protein of 8zm6 (Thermolysin) is known to bind to di-peptides. Furthermore, there is no other reason to store these two residues as HETATM if they correspond to the typical structure of the corresponding aminoacids. (Note: to keep chain ligands consistent, their corresponding chains are preceded with "h", even if they have their own chain)
+- the first instance is a di-peptide ligand annotated as part of chain A. Typically, this ligand would be assigned to its own chain, but here it is assigned the same chain as the larger chain A containing the protein query. In order to store this "multi-residue" ligand as a separate entity, the chain code "hA" has been assigned it. Even though the PDB entry 8zm6 has no publication to clarify these two residues are actually a complexed dipeptide, the protein of 8zm6 (Thermolysin) is known to bind to di-peptides. Furthermore, there is no other reason to store these two residues as HETATM if they correspond to the typical structure of the corresponding aminoacids.
 
 - the second instance is a small-molecule ligand with ID N8I (stored under residue number 701). The ligand is connected to chain B.
 
@@ -111,6 +111,11 @@ The of identified ligands in the output file, and their corresponding cleaned pr
 All structures inside a given uniprot query are aligned and saved separately (ligands and proteins in their own individual files). The **unaligned complexes** are also saved one level up, in **projectname/pdbs_filtered_chains/uniprotQuery**.
 
 The original, raw list of ligands after the first pass (module 1) of ligand identification is saved in **rawlist_extraction.txt**.
+
+There are two types of ligands in LigExtract
+
+- **small molecules**: typically correspond to single-residue ligands. Stored under the name pattern of "_lig-".
+- **Chain ligands**: correspond to multi-residue ligands/entities. Stored under the name pattern of "_lig_chain-". Typically (but not always), chain ligands are assigned their own chain ID, separate from the query protein chain(s).
 
 #### Filter mode:
 filter model is currently disabled
