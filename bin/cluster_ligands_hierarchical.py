@@ -19,6 +19,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from pdbecif.mmcif_io import CifFileReader
 import traceback
 import gzip
+import shutil
 #HOME = str(Path.home())
 HOME = os.path.realpath(__file__)
 HOME = HOME.split("/LigExtract")[0]
@@ -382,12 +383,34 @@ def clusteringSplit(prot, p_i):
     
     print("\nALIGNMENT --------------------------")
     #produce the *align.pdb files here
-    rmsd=subprocess.run(f'pymol -cq {HOME}/LigExtract/bin/align_pdbs_pockets.py -- {prot_dir}/pdbs_filtered_chains/{prot}', shell=True, capture_output=True)
+    #first get ref files
+    screen_chainsize = []
+    for pdbc,un,siz in pockets_prot[["pdbcode","chainUniprot", "chainSize"]].drop_duplicates().values:
+        chain_unip_dict = eval("{'"+un.replace("(","':'").replace(")","").replace(";","','")+"'}")
+        chain_size_dict = eval("{'"+siz.replace("(","':'").replace(")","").replace(";","','")+"'}")
+        un = pd.DataFrame(chain_unip_dict.items(), columns=["chain","uniprot"])
+        siz = pd.DataFrame(chain_size_dict.items(), columns=["chain","chsize"])
+        un_siz = un.merge(siz, on="chain")
+        un_siz.loc[:,"chsize"] = un_siz.chsize.astype(int)
+        un_siz = un_siz.query(f"uniprot == '{prot}'")
+        un_siz = un_siz.sort_values("chsize",ascending=False)[0:1]
+        screen_chainsize.append([pdbc, un_siz.chsize[0], un_siz.chain[0]])
+    screen_chainsize = pd.DataFrame(screen_chainsize, columns=["pdb","chsize", "ch"])
+    screen_chainsize = screen_chainsize.sort_values("chsize", ascending=False)
+    print(screen_chainsize.head())
+    refpdb = screen_chainsize[0:1].pdb.values[0]
+    refch = screen_chainsize[0:1].ch.values[0]
+    print(refpdb, refch)
+    refpdb = glob(f"{prot_dir}/pdbs_filtered_chains/{prot}/{refpdb}_keychain{refch}.pdb")[0]
+    shutil.copyfile(refpdb, f"{prot_dir}/pdbs_filtered_chains/{prot}/ref_{prot}.pdb")
+
+
+    rmsd=subprocess.run(f'pymol -cq {HOME}/LigExtract/bin/align_pdbs_pockets.py -- {prot_dir}/pdbs_filtered_chains/{prot} ref_{prot}.pdb', shell=True, capture_output=True)
     refpdb_align = [x for x in os.listdir(f'{prot_dir}/pdbs_filtered_chains/{prot}') if x.endswith(".pdb")][0]
     if len(pockets_prot.pdbcode.unique())>1:
         rmsd = rmsd.stdout.decode("utf=8")
         rmsd = eval("["+rmsd[rmsd.find("["):].strip().replace("\n",",")+"]")
-        print(f"RMSDs from alignment against {refpdb_align}:")
+        print(f"RMSDs from alignment against {refpdb} chain {refch}:")
         for i in rmsd:
             print("\t",i)
         bad_align = [x for x in rmsd if x[1]>3.5]
@@ -406,7 +429,6 @@ def clusteringSplit(prot, p_i):
     unique_pdbs_2alignligs = np.unique([x.split("/")[-1].split("_")[0] for x in glob(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/*_align.pdb")])
     ligs2cluster = pockets_prot[pockets_prot.pdbcode.isin(unique_pdbs_2alignligs)].ligandfile.values
     for ligfile in ligs2cluster:
-        print(ligfile, "-----------------")
         pdb = ligfile.split("_")[0]
         # ref protein with ligands (aligned) - get the corresponding protein for the currently selected ligand
         pdbsref = glob(f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/{pdb}*align.pdb")
@@ -446,7 +468,6 @@ def clusteringSplit(prot, p_i):
             newligname = ligfile.replace('.pdb','_aligned_LIG.pdb')
             fullPdb.to_pdb(path=f"{prot_dir}/pdbs_filtered_chains/{prot}/aligned_pdbs/{newligname}", records=['ATOM', 'HETATM'], gz=False, append_newline=True)
             centroid = pd.concat([fullPdb.df["HETATM"], fullPdb.df["ATOM"]])[["x_coord", "y_coord","z_coord"]].mean().values.round(3)
-            print(newligname, centroid)
             ligand_centroid.append(np.hstack([newligname, centroid]))
     
     # strip ligands from protein file

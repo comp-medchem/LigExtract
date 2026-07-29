@@ -74,7 +74,7 @@ In this example, ligextract will only consider PDBs up to 2.5 Angstrom resolutio
 
 Additionally you can provide your own list of PDBs. This is meant to make the query more efficient in cases where you do not want to consider/process all PDBs that map to your UniProt ID(s). This should be a simple *.txt file with one PDB code per line (not case sensitive).
 
-    ligextract.sh -d myproteins -r 3 -f myPdbQueries.txt
+    ligextract.sh -d myproteins -r 2.5 -f myPdbQueries.txt
 
 
 You can inspect the arguments available with:
@@ -82,21 +82,29 @@ You can inspect the arguments available with:
     ligextract.sh -h
 
 
-*In the example query provided in docs/myproteins_uniprot_list.txt, LigExtract processes 267 structures in 6m32s using 7 CPUs.*
+*In the example query provided in docs/myproteins_uniprot_list.txt, LigExtract processes 4 protein queries, 265 PDB structures, in around 15 minutes using 14 CPUs.*
 
 ## Outputs
 
 #### Cluster mode:
 
-Ligextract produces a table called **projectname_ligandsList.txt** with all ligands and some data characterising them, looking like this:
+Ligextract produces a table called **<projectname>_ligandsList.txt** with all ligands and some data characterising them, looking like this:
 
-ligandfile | pocketres_chain | pocketres_chain_size | chain_name | ligtype | lig_ID | pdbcode 
---- | --- | --- | --- | --- | --- | --- 
-1sb1_lig_chain-I.pdb | ARG67-H;(...);TYR76-H | 18 | H | chain ligand | 1sb1_lig_chain-I | 1sb1 
-1sb1_chain-H_lig-165-1001.pdb | ALA190-H;(...);VAL213-H | 30 | H | small-molecule ligand | 165-1001 | 1sb1
+ligandfile | pocketres_chain | pocketres_chain_size | chain_name | ligtype | lig_ID | pdbcode | original_ligID | chainUniprot | chainSize 
+--- | --- | --- | --- | --- | --- | --- | --- | --- | ---
+8zm6_lig_chain-hA.pdb | ALA113-A;(...);VAL139-A | 20 | A | chain ligand | 8zm6_lig_chain-hA | 8zm6 |  | A(P00800) | A(315)
+7ufy_chain-B_lig-N8I-701.pdb | ASN283-B;(...);VAL401-B | 22 | B | small-molecule ligand | N8I-701 | 7ufy | N8I | B(Q9NUW8) | B(460)
+9b3b_chain-A_lig-01-701.pdb | ASN203-A;(...);TYR204-A | 24 | A | small-molecule ligand | 01-701 | 9b3b | A1AIM | A(Q9NUW8) | A(460)
 
 
-In the example shown above, structure [1SB1](https://www.rcsb.org/structure/1SB1) has two ligands: one peptide ligand annotated under chain I, and a small-molecule ligand with ID 165 (and residue number 1001). Both ligands are bound to chain H.
+
+In the excerpt shown above (obtained from the example query in myproteins_uniprot_list.txt), we seen three identified ligands:
+
+- the first instance is a di-peptide ligand annotated as part of chain A. Typically, this ligand would be assigned to its own chain, but here it is assigned the same chain as the larger chain A containing the protein query. In order to store this "multi-residue" ligand as a separate entity, the chain code "hA" has been assigned it. Even though the PDB entry 8zm6 has no publication to clarify these two residues are actually a complexed dipeptide, the protein of 8zm6 (Thermolysin) is known to bind to di-peptides. Furthermore, there is no other reason to store these two residues as HETATM if they correspond to the typical structure of the corresponding aminoacids. (Note: to keep chain ligands consistent, their corresponding chains are preceded with "h", even if they have their own chain)
+
+- the second instance is a small-molecule ligand with ID N8I (stored under residue number 701). The ligand is connected to chain B.
+
+- the third instance, another small-molecule ligand, has ligand ID A1AIM. However, as this is a long code, it has been replaced with the ID 01. The ligand is stored under residue 701.
 
 The of identified ligands in the output file, and their corresponding cleaned proteins, are stored under **projectname/pdbs_filtered_chains/uniprotQuery/aligned_pdbs**. Here, *projectname* corresponds to the name you provided earlier, and *uniprotQuery* will correspond to each query in your input file. In this directory, a **pymol session file** (*.pse) is also saved with all ligands clustered (each cluster has a color and a code registered in the **clusters** directory).
 

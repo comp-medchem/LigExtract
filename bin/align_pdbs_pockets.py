@@ -2,6 +2,7 @@ import sys, copy, os
 import numpy
 filesloc = sys.argv[1] 
 targetdir = sys.argv[1]
+refpdb = sys.argv[2]
 if targetdir[-1]=="/": targetdir = targetdir[:-1]
 
 if targetdir=='':
@@ -13,16 +14,16 @@ try: os.mkdir(targetdir)
 except OSError: None
 
 
-listpdbs = [x for x in os.listdir(filesloc) if x.endswith(".pdb")]
-
+listpdbs = [x for x in os.listdir(filesloc) if (x.endswith(".pdb") and x!=refpdb)]
 
 # aligment
-refpdb = listpdbs[0]
+#refpdb = listpdbs[0]
 cmd.load(filesloc+"/"+refpdb)
-cmd.save(targetdir+refpdb.split(".pdb")[0]+"_align.pdb", refpdb.split(".pdb")[0])
+# ref pdb is already one of the files that will be aligned.
+#cmd.save(targetdir+refpdb.split(".pdb")[0]+"_align.pdb", refpdb.split(".pdb")[0])
 
 rms_align = []
-for f in listpdbs[1:]:
+for f in listpdbs:
 	cmd.load(filesloc+"/"+f)
 	al=cmd.align(f.split(".pdb")[0],refpdb.split(".pdb")[0])
 	rmsd = al[0]
