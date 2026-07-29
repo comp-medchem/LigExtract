@@ -51,7 +51,7 @@ print(f"\n{pad_char * (padding_total // 2)} {title} {pad_char * (padding_total -
 #def fastuniprot2pdb(uniprotLstFile, allpdbsTabl, resolution_limit):
 
 # This is the function to use now
-def getuniprot2pdb(uniprotLstFile, allpdbsTabl, resolution_limit):
+def getuniprot2pdb(uniprotLst, allpdbsTabl, resolution_limit):
     response = []
     line_cnt= 0
     #['PDB', 'CHAIN', 'SP_PRIMARY', 'RES_BEG', 'RES_END', 'PDB_BEG', 'PDB_END', 'SP_BEG', 'SP_END']
@@ -62,9 +62,10 @@ def getuniprot2pdb(uniprotLstFile, allpdbsTabl, resolution_limit):
             if line_cnt==2 and ln[2]!= 'SP_PRIMARY':
                 sys.exit("file not structured as originally expected")
             if line_cnt<2: continue
-            if ln[2] in uniprot_lst:
+            if ln[2] in uniprotLst:
                 response.append([ln[2], ln[0].upper()])
     response = pd.DataFrame(response, columns=["From", "To"])
+    response = response.drop_duplicates()
     print(f"{len(response)} retrieved PDBs")
     response = response[np.isin(response.To, allpdbsTabl.query(f"RESOLUTION < {resolution_limit}").pdb)]
     print(f"{len(response)} PDBs under the set resolution")
@@ -91,7 +92,7 @@ uniprot_lst = np.unique([x.strip() for x in open(uniprot_lst).readlines()])
 print(f'There are {len(uniprot_lst)} unique Uniprot IDs that will be processed.\n')
 
 
-bar = Bar('Fetching PDB codes from Uniprot IDs... ', max=len(uniprot_lst))
+print('Fetching PDB codes from Uniprot IDs... ')
 
 uniprot_pdb_dict = getuniprot2pdb(uniprot_lst, all_pdbs, resolution_lim)
 

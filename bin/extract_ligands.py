@@ -463,9 +463,24 @@ def extractorSplit(pdbname):
             
             lig = PandasPdb().read_pdb(f'{originpath}/{pdbname}')
             lig_instances = lig.df["HETATM"].query(f"residue_name=='{cpd}'")[["residue_name", "residue_number", "chain_id"]].drop_duplicates()
-            #since this compound is a isolated entity, there should be no case where it is a multi-residue compound.
+            
+            # get glyxosylation to exclude from the ligands
+            data = cifdata[pdbcode.upper()]
+            if "_pdbx_modification_feature" in data:
+                nglyc = pd.DataFrame.from_dict(data["_pdbx_modification_feature"], orient="index").T
+                nglyc = nglyc.query("type == 'N-Glycosylation'")
+                nglyc = nglyc[["auth_comp_id","auth_seq_id","auth_asym_id"]]
+                
+            #since this compound is an isolated entity, there should be no case where it is a multi-residue compound.
             # separate multiple residues
+            print(nglyc)
             for resname, resx, chain in lig_instances.values:
+                # remove ligands that are glycosylation groups
+                if len(nglyc.query(f"auth_comp_id == '{resname}' and auth_seq_id == {resx} and auth_asym_id=='{chain}'"))>0:
+                    print(f"bypass {rename} {resx} {chain} for being a glycosylation group")
+                    continue
+
+                # save ligand file
                 lig = PandasPdb().read_pdb(f'{originpath}/{pdbname}')
                 lig.df["HETATM"] = lig.df["HETATM"].query(f'residue_name=="{cpd}" and chain_id=="{chain}" and residue_number=={resx}')
                 lig.df["ATOM"] = lig.df["ATOM"].query(f'residue_name=="NOTHING"') # should not exist here
@@ -473,6 +488,8 @@ def extractorSplit(pdbname):
                                 gz=False, append_newline=True)
                 storeLog.append(f'{pdbname.split(".")[0]}_chain-{chain}_lig-{cpd}-{resx}') #cases like 8uv1 ligands will start replacing each other.
 
+    
+        
 
     # compare all ligands in cmpds, if links is empty. Rebuilding from links will happen in next module
     lig_files = glob(f'{outpath}/{pdbcode.lower()}*_lig-*.pdb')
