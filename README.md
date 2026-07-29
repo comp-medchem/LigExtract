@@ -88,7 +88,7 @@ You can inspect the arguments available with:
 
 #### Cluster mode:
 
-Ligextract produces a table called **<projectname>_ligandsList.txt** with all ligands and some data characterising them, looking like this:
+Ligextract produces a table in a file ending with **_ligandsList.txt** with all ligands and some data characterising them, looking like this:
 
 ligandfile | pocketres_chain | pocketres_chain_size | chain_name | ligtype | lig_ID | pdbcode | original_ligID | chainUniprot | chainSize 
 --- | --- | --- | --- | --- | --- | --- | --- | --- | ---
