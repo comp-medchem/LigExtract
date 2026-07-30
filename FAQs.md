@@ -19,7 +19,9 @@ As this tool is focused on ligands if, at any stage, a given pdb is found to hav
 
 ### Why does LigExtract sometimes keep more than one small molecule?
 
-In some cases it is not possible to know, without reading the original publication and/or having knowledge on crystallography procedures, whether a given molecule in a ligand (of pharmaceutical interest). If we consider the case of 5F1A, LigExtract will classify SAL, AKR and COH as possible ligands.
+In some cases it is not possible to know, without reading the original publication and/or having knowledge on crystallography procedures, whether a given molecule is a ligand (of pharmaceutical interest). If we consider the case of 5F1A, LigExtract will classify SAL, AKR and COH as possible ligands.
 - In this case SAL (salicylic acid) is the key ligand, according to the title of the PDB entry ("The Crystal Structure of Salicylate Bound to Human Cyclooxygenase-2"). 
-- Regarding AKR (acrylic acid), this is a molecule that occurs in fewer PDBs than SAL and is complexed in just 3 locations in the PDB structure (which can legitimatelly happen for inhibitors of certain kinases, for instance), as is not overly small (similar size to SAL). As a result, there is no reason to exclude AKR as, by all accounts, it looks like it could be a ligand.
+- Regarding AKR (acrylic acid), this is a molecule that occurs in fewer PDBs than SAL and is complexed in just 3 locations in the 5F1A structure (which is not unprecedented for legitimate ligands in other proteins, such as kinases). Also it is not overly small (similar size to SAL). As a result, there is no reason to exclude AKR as, by all accounts, it looks like it could be a ligand.
 - COH (protoporphyrin IX) can be considered a second legitimate ligand, as it is a cofactor (and could be used to drive drug design, since cofactor-competitive inhibitors are a viable route of drug development).
+
+In proteins with multiple holo structures (such as this protein), it is likely that AKR would be later excluded once the clusters of ligands are considered (it would presumably not be in a large cluster).
