@@ -10,7 +10,7 @@ LigExtract still relies on the PDB file format, so all cif files (originally dow
 
 
 ### my protein of interest contains an ion that plays a modulatory role (therefore it should be considered a ligand of pharmaceutical interest). Why is it not considered as a ligand? 
-Several cases exist of ions that play a modulatory role. In some cases an ion ligand even acts as an inhibitor. For example, Fluoride inhibits enolase. However, the main focus of LigExtract if to aid drug design (often aimed at gathering ligands for molecular docking, for instance) so, it considers only drug-like molecules, excluding all others. One can easily access the ions listed for each PDB using RSBC's own lists (built in the dependencies of LigExtract, under data).
+Several cases exist of ions that play a modulatory role. In some cases an ion ligand even acts as an inhibitor. For example, Fluoride inhibits enolase. However, the main focus of LigExtract if to aid drug design (often aimed at gathering ligands for molecular docking, for instance) so, it considers only drug-like molecules among small-molecules (alongside biologicals and related entities such as antibodies or DNA). One can easily access the ions listed for each PDB using RSBC's own lists (created in the dependencies of LigExtract, under data).
 
 
 ### How does LigExtract handle structures with no ligands of pharmaceutical interest?
