@@ -127,10 +127,10 @@ if len(chains2solve)>0:
     old2new_lst = pd.concat([old2new_lst, old2new_lst2])
 
 old2new_lst_append = new_uniprots[~new_uniprots.pdbs.isin(old2new_lst.pdb.unique())]
-old2new_lst_append = old2new_lst_append.rename(columns={"uniprot":"updated_uniprot", "pdbs":"pdb", "chainName":"chain"})
-old2new_lst_append.loc[:,"uniprot_in_pdbfile"] = None
-
-old2new_lst = pd.concat([old2new_lst,old2new_lst_append])
+if len(old2new_lst_append) > 0:
+    old2new_lst_append = old2new_lst_append.rename(columns={"uniprot":"updated_uniprot", "pdbs":"pdb", "chainName":"chain"})
+    old2new_lst_append.loc[:,"uniprot_in_pdbfile"] = None
+    old2new_lst = pd.concat([old2new_lst,old2new_lst_append])
 
 old2new_lst.to_csv(f"{pdbpath.split('/')[-1]}_process_uniprot_chains.txt", sep="\t", index=False)
 

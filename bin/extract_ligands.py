@@ -432,8 +432,37 @@ def extractorSplit(pdbname):
     cmpds = np.setdiff1d(cmpds, cmpds_removed)
     cmpds = np.setdiff1d(cmpds, res_not_cmpds)
 
+
+    # get glyxosylation to exclude from the ligands
+    data = cifdata[pdbcode.upper()]
+
+    if "_struct_conn" in data:
+        #links_all = pd.DataFrame.from_dict(data["_struct_conn"], orient="index").T
+        nglyc_nodes = links.query("pdbx_role == 'N-Glycosylation'")
+        links_all = links[["ptnr1_auth_comp_id", "ptnr1_auth_seq_id", "ptnr1_auth_asym_id", "ptnr2_auth_comp_id", "ptnr2_auth_seq_id", "ptnr2_auth_asym_id", "pdbx_role"]]
+        links_all = links_all.astype(str)
+        link1 = ["-".join(x) for x in links_all[["ptnr1_auth_comp_id", "ptnr1_auth_seq_id", "ptnr1_auth_asym_id"]].values]
+        link2 = ["-".join(x) for x in links_all[["ptnr2_auth_comp_id", "ptnr2_auth_seq_id", "ptnr2_auth_asym_id"]].values]
+        links_all = [x for x in zip(link1,link2)]
+        G = nx.Graph()
+        G.add_edges_from(links_all)
+        nglyc_nodes = ["-".join(x) for x in nglyc_nodes[["ptnr1_auth_comp_id", "ptnr1_auth_seq_id", "ptnr1_auth_asym_id"]].values]
+        branches = [list(x) for x in nx.connected_components(G)]
+        branches = [x for x in branches if len(np.intersect1d(x,nglyc_nodes))>0]
+        if len(branches) > 0:
+            branches = [x.split("-") for x in np.unique(np.hstack(branches))]
+        else:
+            branches = []
+        nglyc = pd.DataFrame(branches, columns=["auth_comp_id", "auth_seq_id", "auth_asym_id"])
+
+    else:
+        nglyc = pd.DataFrame([], columns=["auth_comp_id", "auth_seq_id", "auth_asym_id"])
+
+    for resname, resx, chain in nglyc.values:
+        logfile.write(f"N-glycosylation res (to add to the protein later): {resname} {resx} {chain}\n")
+    logfile.write("--------\n")
+
     if len(cmpds)>0:
-        print(cmpds)
         pdbCnts = pd.read_csv(f"{home}/LigExtract/data/all_pdbligs.txt", sep="\t")
         for cpd in cmpds:
             message = ""
@@ -464,20 +493,13 @@ def extractorSplit(pdbname):
             lig = PandasPdb().read_pdb(f'{originpath}/{pdbname}')
             lig_instances = lig.df["HETATM"].query(f"residue_name=='{cpd}'")[["residue_name", "residue_number", "chain_id"]].drop_duplicates()
             
-            # get glyxosylation to exclude from the ligands
-            data = cifdata[pdbcode.upper()]
-            if "_pdbx_modification_feature" in data:
-                nglyc = pd.DataFrame.from_dict(data["_pdbx_modification_feature"], orient="index").T
-                nglyc = nglyc.query("type == 'N-Glycosylation'")
-                nglyc = nglyc[["auth_comp_id","auth_seq_id","auth_asym_id"]]
-                
             #since this compound is an isolated entity, there should be no case where it is a multi-residue compound.
-            # separate multiple residues
-            print(nglyc)
+            # separate multiple residues      
+            
             for resname, resx, chain in lig_instances.values:
                 # remove ligands that are glycosylation groups
-                if len(nglyc.query(f"auth_comp_id == '{resname}' and auth_seq_id == {resx} and auth_asym_id=='{chain}'"))>0:
-                    print(f"bypass {rename} {resx} {chain} for being a glycosylation group")
+                if len(nglyc.query(f"auth_comp_id == '{resname}' and auth_seq_id == '{resx}' and auth_asym_id=='{chain}'"))>0:
+                    print(f"bypass {resname} {resx} {chain} for being a glycosylation group")
                     continue
 
                 # save ligand file
