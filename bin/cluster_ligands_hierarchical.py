@@ -401,8 +401,14 @@ def clusteringSplit(prot, p_i):
     refpdb = screen_chainsize[0:1].pdb.values[0]
     refch = screen_chainsize[0:1].ch.values[0]
     print(refpdb, refch)
-    refpdb = glob(f"{prot_dir}/pdbs_filtered_chains/{prot}/{refpdb}_keychain{refch}.pdb")[0]
-    shutil.copyfile(refpdb, f"{prot_dir}/pdbs_filtered_chains/{prot}/ref_{prot}.pdb")
+    refpdb = glob(f"{prot_dir}/pdbs_filtered_chains/{prot}/{refpdb}_keychain*.pdb") #
+    refpdb = [x for x in refpdb if refch in x.split("keychain")[1]][0]
+    #shutil.copyfile(refpdb, f"{prot_dir}/pdbs_filtered_chains/{prot}/ref_{prot}.pdb")
+    # in case these is no isolated structure, save just the desired chain
+    protein_pdb = PandasPdb().read_pdb(refpdb)
+    protein_pdb.df["ATOM"] = protein_pdb.df["ATOM"].query(f"chain_id == '{refch}'")
+    protein_pdb.to_pdb(path=f"{prot_dir}/pdbs_filtered_chains/{prot}/ref_{prot}.pdb", records=None, gz=False, append_newline=True)
+
 
 
     rmsd=subprocess.run(f'pymol -cq {HOME}/LigExtract/bin/align_pdbs_pockets.py -- {prot_dir}/pdbs_filtered_chains/{prot} ref_{prot}.pdb', shell=True, capture_output=True)
