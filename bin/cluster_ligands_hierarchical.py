@@ -406,7 +406,8 @@ def clusteringSplit(prot, p_i):
 
 
     rmsd=subprocess.run(f'pymol -cq {HOME}/LigExtract/bin/align_pdbs_pockets.py -- {prot_dir}/pdbs_filtered_chains/{prot} ref_{prot}.pdb', shell=True, capture_output=True)
-    refpdb_align = [x for x in os.listdir(f'{prot_dir}/pdbs_filtered_chains/{prot}') if x.endswith(".pdb")][0]
+    #refpdb_align = [x for x in os.listdir(f'{prot_dir}/pdbs_filtered_chains/{prot}') if x.endswith(".pdb")][0]
+    os.remove(f"ref_{prot}.pdb")
     if len(pockets_prot.pdbcode.unique())>1:
         rmsd = rmsd.stdout.decode("utf=8")
         rmsd = eval("["+rmsd[rmsd.find("["):].strip().replace("\n",",")+"]")
@@ -418,7 +419,7 @@ def clusteringSplit(prot, p_i):
         rmsd = []
         bad_align = []
     if len(bad_align)>0:
-        print(f"After aligning {len(rmsd)+1} structures using {refpdb_align} as reference, {len(bad_align)} showed poor alignment to the rest. Please consider manual alignment and inspection of the following structures:")
+        print(f"After aligning {len(rmsd)+1} structures using {refpdb}_keychain{refch}.pdb as reference, {len(bad_align)} showed poor alignment to the rest. Please consider manual alignment and inspection of the following structures:")
         for x in bad_align:
             print("\t",x)
     else:
