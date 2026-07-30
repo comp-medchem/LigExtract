@@ -413,7 +413,7 @@ def clusteringSplit(prot, p_i):
 
     rmsd=subprocess.run(f'pymol -cq {HOME}/LigExtract/bin/align_pdbs_pockets.py -- {prot_dir}/pdbs_filtered_chains/{prot} ref_{prot}.pdb', shell=True, capture_output=True)
     #refpdb_align = [x for x in os.listdir(f'{prot_dir}/pdbs_filtered_chains/{prot}') if x.endswith(".pdb")][0]
-    os.remove(f"ref_{prot}.pdb")
+    os.remove(f"{prot_dir}/pdbs_filtered_chains/{prot}/ref_{prot}.pdb")
     if len(pockets_prot.pdbcode.unique())>1:
         rmsd = rmsd.stdout.decode("utf=8")
         rmsd = eval("["+rmsd[rmsd.find("["):].strip().replace("\n",",")+"]")
