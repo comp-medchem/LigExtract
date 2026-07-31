@@ -323,6 +323,9 @@ def clusteringSplit(prot, p_i):
     print(f'**** Protein {prot}')
     pdbs = uniprot2pdbFile.query(f"uniprot == '{prot}'").pdb.str.lower().values
     pockets_prot = save_clean_pockets[np.isin(save_clean_pockets.pdbcode, pdbs)]
+    # filter out the entries that are generically tied to a uniprot by having a modified peptide, for example.
+    # e.g. 4A1W is associated with O43521 through its 19-res peptide
+    pockets_prot = pockets_prot[[prot in ln for ln in pockets_prot.chainUniprot.values]]
     if len(pockets_prot) == 0:
         sys.stderr.write(f"\n\n*** Clustering Protein {prot} ({p_i+1}/{len(prot_lst)} proteins) : bypass as it has no found ligands in any PDBs.\n")
         print(f"bypass {prot} as it has no found ligands in any PDBs.")
@@ -386,15 +389,15 @@ def clusteringSplit(prot, p_i):
     #first get ref files
     screen_chainsize = []
     for pdbc,un,siz in pockets_prot[["pdbcode","chainUniprot", "chainSize"]].drop_duplicates().values:
-        chain_unip_dict = eval("{'"+un.replace("(","':'").replace(")","").replace(";","','")+"'}")
-        chain_size_dict = eval("{'"+siz.replace("(","':'").replace(")","").replace(";","','")+"'}")
-        un = pd.DataFrame(chain_unip_dict.items(), columns=["chain","uniprot"])
-        siz = pd.DataFrame(chain_size_dict.items(), columns=["chain","chsize"])
-        un_siz = un.merge(siz, on="chain")
+        chain_unip_dict = eval("[['"+un.replace("(","','").replace(")","']").replace(";",",['")+"]")
+        chain_size_dict = eval("[['"+siz.replace("(","','").replace(")","']").replace(";",",['")+"]")
+        un = pd.DataFrame(chain_unip_dict, columns=["chain","uniprot"])
+        siz = pd.DataFrame(chain_size_dict, columns=["ch","chsize"])
+        un_siz = pd.concat([un,siz], axis=1)
         un_siz.loc[:,"chsize"] = un_siz.chsize.astype(int)
         un_siz = un_siz.query(f"uniprot == '{prot}'")
         un_siz = un_siz.sort_values("chsize",ascending=False)[0:1]
-        screen_chainsize.append([pdbc, un_siz.chsize[0], un_siz.chain[0]])
+        screen_chainsize.append([pdbc, un_siz.chsize.values[0], un_siz.chain.values[0]])
     screen_chainsize = pd.DataFrame(screen_chainsize, columns=["pdb","chsize", "ch"])
     screen_chainsize = screen_chainsize.sort_values("chsize", ascending=False)
     print(screen_chainsize.head())
